@@ -16,13 +16,14 @@ import (
 )
 
 type rootModel struct {
-	dataDir        string
-	defaultBookDir string
-	tempBookDir    string
-	store          *store.Store
-	mode           appMode
-	bookshelf      app.BookshelfModel
-	reader         *app.ReaderModel
+	dataDir          string
+	defaultBookDir   string
+	tempBookDir      string
+	store            *store.Store
+	mode             appMode
+	bookshelf        app.BookshelfModel
+	directoryManager app.DirectoryManagerModel
+	reader           *app.ReaderModel
 }
 
 type appMode int
@@ -30,6 +31,7 @@ type appMode int
 const (
 	modeBookshelf appMode = iota
 	modeReader
+	modeDirectoryManager
 )
 
 func main() {
@@ -93,6 +95,43 @@ func main() {
 		fmt.Fprintf(os.Stderr, "运行错误: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func (m rootModel) loadLibraryDirs() ([]models.LibraryDir, error) {
+	return m.store.ListLibraryDirs()
+}
+
+func (m rootModel) refreshBookshelf(status string) (rootModel, error) {
+	if _, err := ensureDefaultLibraryDir(m.store, m.defaultBookDir); err != nil {
+		return m, err
+	}
+	dirs, err := configuredScanDirs(m.store, m.tempBookDir)
+	if err != nil {
+		return m, err
+	}
+	books, scanErrs, err := refreshBooks(m.store, dirs)
+	if err != nil {
+		return m, err
+	}
+	m.bookshelf = app.NewBookshelfModel(books)
+	if status == "" {
+		status = fmt.Sprintf("已扫描 %d 本书", len(books))
+	}
+	if len(scanErrs) > 0 {
+		status = fmt.Sprintf("%s，%d 个目录扫描失败", status, len(scanErrs))
+	}
+	m.bookshelf.SetStatus(status)
+	return m, nil
+}
+
+func (m rootModel) reloadDirectoryManager() rootModel {
+	dirs, err := m.loadLibraryDirs()
+	if err != nil {
+		m.directoryManager = app.NewDirectoryManagerModel(nil)
+		return m
+	}
+	m.directoryManager = app.NewDirectoryManagerModel(dirs)
+	return m
 }
 
 func ensureDefaultLibraryDir(st *store.Store, defaultDir string) (bool, error) {
@@ -267,6 +306,77 @@ func (m rootModel) Init() tea.Cmd { return nil }
 
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case app.OpenDirectoryManagerMsg:
+		dirs, err := m.loadLibraryDirs()
+		if err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("读取目录失败: %v", err))
+			return m, nil
+		}
+		m.directoryManager = app.NewDirectoryManagerModel(dirs)
+		m.mode = modeDirectoryManager
+		return m, nil
+
+	case app.CloseDirectoryManagerMsg:
+		m.mode = modeBookshelf
+		return m, nil
+
+	case app.RescanLibraryDirsMsg:
+		var err error
+		m, err = m.refreshBookshelf("目录已重新扫描")
+		if err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("扫描失败: %v", err))
+		}
+		m = m.reloadDirectoryManager()
+		m.mode = modeDirectoryManager
+		return m, nil
+
+	case app.AddLibraryDirMsg:
+		path, err := config.NormalizePath(msg.Path)
+		if err != nil {
+			m.directoryManager = app.NewDirectoryManagerModel(nil)
+			return m, nil
+		}
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			if msg.Create {
+				if err := os.MkdirAll(path, 0755); err != nil {
+					m.bookshelf.SetStatus(fmt.Sprintf("创建目录失败: %v", err))
+					return m, nil
+				}
+			} else {
+				m.bookshelf.SetStatus(fmt.Sprintf("目录不存在: %s", path))
+				return m, nil
+			}
+		} else if !info.IsDir() {
+			m.bookshelf.SetStatus(fmt.Sprintf("不是目录: %s", path))
+			return m, nil
+		}
+		if _, err := m.store.AddLibraryDir(path, false); err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("添加目录失败: %v", err))
+			return m, nil
+		}
+		m, err = m.refreshBookshelf(fmt.Sprintf("已添加目录 %s", path))
+		if err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("扫描失败: %v", err))
+		}
+		m = m.reloadDirectoryManager()
+		m.mode = modeDirectoryManager
+		return m, nil
+
+	case app.DeleteLibraryDirMsg:
+		if err := m.store.DeleteLibraryDir(msg.Dir.ID); err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("删除目录失败: %v", err))
+			return m, nil
+		}
+		var err error
+		m, err = m.refreshBookshelf(fmt.Sprintf("已删除目录 %s", msg.Dir.Path))
+		if err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("扫描失败: %v", err))
+		}
+		m = m.reloadDirectoryManager()
+		m.mode = modeDirectoryManager
+		return m, nil
+
 	case app.OpenBookMsg:
 		// 重新解析文件以获取章节内容（store 只存了 metadata）
 		parsed, err := parser.ParseByExtension(msg.Book.FilePath)
@@ -296,6 +406,11 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.mode == modeDirectoryManager {
+		dm, cmd := m.directoryManager.Update(msg)
+		m.directoryManager = dm.(app.DirectoryManagerModel)
+		return m, cmd
+	}
 	if m.mode == modeBookshelf {
 		bs, cmd := m.bookshelf.Update(msg)
 		m.bookshelf = bs.(app.BookshelfModel)
@@ -312,6 +427,9 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m rootModel) View() string {
+	if m.mode == modeDirectoryManager {
+		return m.directoryManager.View()
+	}
 	if m.mode == modeReader && m.reader != nil {
 		return m.reader.View()
 	}

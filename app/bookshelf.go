@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/xuanchong/cli-read/models"
 	"github.com/xuanchong/cli-read/ui"
@@ -17,8 +17,10 @@ type bookItem struct {
 	book models.Book
 }
 
-func (b bookItem) Title() string       { return b.book.Title }
-func (b bookItem) Description() string { return fmt.Sprintf("[%s] %s", strings.ToUpper(b.book.Format), b.book.Author) }
+func (b bookItem) Title() string { return b.book.Title }
+func (b bookItem) Description() string {
+	return fmt.Sprintf("[%s] %s", strings.ToUpper(b.book.Format), b.book.Author)
+}
 func (b bookItem) FilterValue() string { return b.book.Title }
 
 // BookshelfModel is the bookshelf view.
@@ -95,6 +97,8 @@ func (m BookshelfModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Search):
 			m.searching = true
 			m.input.Focus()
+		case key.Matches(msg, m.keys.ManageDirs):
+			return m, func() tea.Msg { return OpenDirectoryManagerMsg{} }
 		case key.Matches(msg, m.keys.Open):
 			if item, ok := m.list.SelectedItem().(bookItem); ok {
 				return m, func() tea.Msg { return OpenBookMsg{Book: item.book} }

@@ -36,3 +36,15 @@ func TestBookshelfOpenSendsMsg(t *testing.T) {
 		t.Errorf("book: %+v", openMsg.Book)
 	}
 }
+
+func TestBookshelfOpenDirectoryManagerSendsMsg(t *testing.T) {
+	books := []models.Book{{ID: 1, Title: "三体", Format: "epub"}}
+	m := NewBookshelfModel(books)
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	if cmd == nil {
+		t.Fatal("expected command")
+	}
+	if _, ok := cmd().(OpenDirectoryManagerMsg); !ok {
+		t.Fatalf("expected OpenDirectoryManagerMsg")
+	}
+}

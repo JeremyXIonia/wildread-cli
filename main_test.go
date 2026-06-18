@@ -3,8 +3,10 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/xuanchong/cli-read/app"
 	"github.com/xuanchong/cli-read/models"
 	"github.com/xuanchong/cli-read/store"
 )
@@ -205,6 +207,87 @@ func TestSyncBooksPrunesMissingFromFullScan(t *testing.T) {
 	}
 	if len(books) != 0 {
 		t.Fatalf("books after prune: %+v", books)
+	}
+}
+
+func TestRootOpenDirectoryManagerSwitchesMode(t *testing.T) {
+	st := newRootTestStore(t)
+	dir := t.TempDir()
+	if _, err := st.AddLibraryDir(dir, true); err != nil {
+		t.Fatalf("add dir: %v", err)
+	}
+	m := rootModel{store: st, mode: modeBookshelf}
+
+	updated, _ := m.Update(app.OpenDirectoryManagerMsg{})
+	root := updated.(rootModel)
+
+	if root.mode != modeDirectoryManager {
+		t.Fatalf("mode = %v, want modeDirectoryManager", root.mode)
+	}
+	if got := root.View(); !strings.Contains(got, dir) {
+		t.Fatalf("directory manager view does not include dir %q: %q", dir, got)
+	}
+}
+
+func TestRootDeleteLibraryDirDeletesAssociatedBooksOnce(t *testing.T) {
+	st := newRootTestStore(t)
+	dir := t.TempDir()
+	bookPath := filepath.Join(dir, "delete-me.txt")
+	writeTestBook(t, bookPath, "Delete Me")
+	dirID, err := st.AddLibraryDir(dir, false)
+	if err != nil {
+		t.Fatalf("add dir: %v", err)
+	}
+	bookID, err := st.UpsertBook(models.Book{Title: "Delete Me", FilePath: bookPath, Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert book: %v", err)
+	}
+	if err := st.SaveProgress(models.ReadingProgress{BookID: bookID, Chapter: 1, Page: 2}); err != nil {
+		t.Fatalf("save progress: %v", err)
+	}
+	if _, err := st.AddBookmark(models.Bookmark{BookID: bookID, Chapter: 1, Page: 2, Label: "mark"}); err != nil {
+		t.Fatalf("add bookmark: %v", err)
+	}
+	m := rootModel{
+		store:          st,
+		mode:           modeDirectoryManager,
+		defaultBookDir: t.TempDir(),
+		bookshelf:      app.NewBookshelfModel(nil),
+	}
+
+	updated, _ := m.Update(app.DeleteLibraryDirMsg{Dir: models.LibraryDir{ID: dirID, Path: dir}})
+	root := updated.(rootModel)
+
+	if root.mode != modeDirectoryManager {
+		t.Fatalf("mode = %v, want modeDirectoryManager", root.mode)
+	}
+	dirs, err := st.ListLibraryDirs()
+	if err != nil {
+		t.Fatalf("list dirs: %v", err)
+	}
+	if len(dirs) != 1 || !dirs[0].IsDefault {
+		t.Fatalf("dirs after delete/default refresh: %+v", dirs)
+	}
+	books, err := st.ListBooks()
+	if err != nil {
+		t.Fatalf("list books: %v", err)
+	}
+	if len(books) != 0 {
+		t.Fatalf("books after delete: %+v", books)
+	}
+	progress, err := st.GetProgress(bookID)
+	if err != nil {
+		t.Fatalf("get progress: %v", err)
+	}
+	if progress.Chapter == 1 || progress.Page == 2 {
+		t.Fatalf("expected saved progress to be deleted, got %+v", progress)
+	}
+	bookmarks, err := st.ListBookmarks(bookID)
+	if err != nil {
+		t.Fatalf("list bookmarks: %v", err)
+	}
+	if len(bookmarks) != 0 {
+		t.Fatalf("bookmarks after delete: %+v", bookmarks)
 	}
 }
 
