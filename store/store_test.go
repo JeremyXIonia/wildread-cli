@@ -128,6 +128,75 @@ func TestLibraryDirsCRUD(t *testing.T) {
 	}
 }
 
+func TestDeleteLibraryDirDeletesBooksUnderDirAndCascadesDependents(t *testing.T) {
+	st := newTestStore(t)
+
+	dirID, err := st.AddLibraryDir("/library/books_%", false)
+	if err != nil {
+		t.Fatalf("add library dir: %v", err)
+	}
+	deleteID, err := st.UpsertBook(models.Book{FilePath: "/library/books_%/sub/a.txt", Title: "delete", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert delete: %v", err)
+	}
+	rootFileID, err := st.UpsertBook(models.Book{FilePath: "/library/books_%", Title: "delete root", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert root file: %v", err)
+	}
+	siblingID, err := st.UpsertBook(models.Book{FilePath: "/library/books_%sibling/b.txt", Title: "keep sibling", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert sibling: %v", err)
+	}
+	outsideID, err := st.UpsertBook(models.Book{FilePath: "/outside/books_%/c.txt", Title: "keep outside", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert outside: %v", err)
+	}
+	if err := st.SaveProgress(models.ReadingProgress{BookID: deleteID, Chapter: 1, Page: 2}); err != nil {
+		t.Fatalf("save progress: %v", err)
+	}
+	if _, err := st.AddBookmark(models.Bookmark{BookID: deleteID, Chapter: 0, Page: 0, Label: "mark"}); err != nil {
+		t.Fatalf("bookmark: %v", err)
+	}
+
+	if err := st.DeleteLibraryDir(dirID); err != nil {
+		t.Fatalf("delete library dir: %v", err)
+	}
+
+	dirs, err := st.ListLibraryDirs()
+	if err != nil {
+		t.Fatalf("list dirs: %v", err)
+	}
+	if len(dirs) != 0 {
+		t.Fatalf("library dir still exists: %+v", dirs)
+	}
+	if _, err := st.GetBook(deleteID); err == nil {
+		t.Fatal("book under deleted library dir still exists")
+	}
+	if _, err := st.GetBook(rootFileID); err == nil {
+		t.Fatal("book matching deleted library dir path still exists")
+	}
+	if got, err := st.GetBook(siblingID); err != nil || got.ID != siblingID {
+		t.Fatalf("sibling book deleted: book=%+v err=%v", got, err)
+	}
+	if got, err := st.GetBook(outsideID); err != nil || got.ID != outsideID {
+		t.Fatalf("outside book deleted: book=%+v err=%v", got, err)
+	}
+	progress, err := st.GetProgress(deleteID)
+	if err != nil {
+		t.Fatalf("get progress: %v", err)
+	}
+	if progress.Chapter != 0 || progress.Page != 0 {
+		t.Fatalf("progress not cascaded: %+v", progress)
+	}
+	marks, err := st.ListBookmarks(deleteID)
+	if err != nil {
+		t.Fatalf("list bookmarks: %v", err)
+	}
+	if len(marks) != 0 {
+		t.Fatalf("bookmarks not cascaded: %+v", marks)
+	}
+}
+
 func TestDeleteBooksUnderDirCascadesProgressAndBookmarks(t *testing.T) {
 	st := newTestStore(t)
 
