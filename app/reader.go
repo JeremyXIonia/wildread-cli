@@ -48,6 +48,9 @@ const (
 func NewReaderModel(book *models.Book, progress models.ReadingProgress, st *store.Store) ReaderModel {
 	chapter := progress.Chapter
 	page := progress.Page
+	if len(book.Chapters) == 0 {
+		book.Chapters = []models.Chapter{{Title: "空", Content: "（无内容）"}}
+	}
 	if chapter >= len(book.Chapters) {
 		chapter = 0
 	}

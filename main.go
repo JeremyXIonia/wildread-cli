@@ -124,8 +124,16 @@ func (m rootModel) Init() tea.Cmd { return nil }
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case app.OpenBookMsg:
+		// 重新解析文件以获取章节内容（store 只存了 metadata）
+		parsed, err := parser.ParseByExtension(msg.Book.FilePath)
+		if err != nil {
+			m.bookshelf.SetStatus(fmt.Sprintf("解析失败: %v", err))
+			return m, nil
+		}
+		parsed.ID = msg.Book.ID
+		parsed.FilePath = msg.Book.FilePath
 		progress, _ := m.store.GetProgress(msg.Book.ID)
-		reader := app.NewReaderModel(&msg.Book, progress, m.store)
+		reader := app.NewReaderModel(parsed, progress, m.store)
 		m.reader = &reader
 		m.mode = modeReader
 		return m, nil
