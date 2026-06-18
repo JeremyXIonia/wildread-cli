@@ -28,3 +28,10 @@ type Bookmark struct {
 	Label     string
 	CreatedAt string
 }
+
+type LibraryDir struct {
+	ID        int64
+	Path      string
+	IsDefault bool
+	CreatedAt string
+}
