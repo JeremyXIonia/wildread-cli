@@ -2,7 +2,6 @@ package store
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/xuanchong/cli-read/models"
 )
@@ -46,10 +45,10 @@ func (s *Store) DeleteLibraryDir(id int64) error {
 
 func (s *Store) DeleteBooksUnderDir(dir string) error {
 	dir = filepath.Clean(dir)
-	prefix := dir + string(filepath.Separator) + "%"
-	if strings.HasSuffix(dir, string(filepath.Separator)) {
-		prefix = dir + "%"
-	}
-	_, err := s.db.Exec(`DELETE FROM books WHERE file_path = ? OR file_path LIKE ?`, dir, prefix)
+	childPrefix := dir + string(filepath.Separator)
+	_, err := s.db.Exec(
+		`DELETE FROM books WHERE file_path = ? OR substr(file_path, 1, ?) = ?`,
+		dir, len(childPrefix), childPrefix,
+	)
 	return err
 }

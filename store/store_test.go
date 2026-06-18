@@ -1,71 +1,96 @@
 package store
 
 import (
-    "os"
-    "path/filepath"
-    "testing"
-    "github.com/xuanchong/cli-read/models"
+	"github.com/xuanchong/cli-read/models"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
 func newTestStore(t *testing.T) *Store {
-    t.Helper()
-    path := filepath.Join(t.TempDir(), "test.db")
-    s, err := Open(path)
-    if err != nil { t.Fatalf("open: %v", err) }
-    t.Cleanup(func() { s.Close(); os.Remove(path) })
-    return s
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "test.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { s.Close(); os.Remove(path) })
+	return s
 }
 
 func TestOpenClose(t *testing.T) {
-    s := newTestStore(t)
-    if err := s.Close(); err != nil { t.Fatalf("close: %v", err) }
+	s := newTestStore(t)
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
 }
 
 func TestBooksCRUD(t *testing.T) {
-    s := newTestStore(t)
-    b := models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"}
-    id, err := s.UpsertBook(b)
-    if err != nil || id <= 0 { t.Fatalf("upsert: %v, %d", err, id) }
-    got, _ := s.GetBook(id)
-    if got.Title != "A" || got.Format != "epub" { t.Fatalf("bad book: %+v", got) }
-    list, _ := s.ListBooks()
-    if len(list) != 1 { t.Fatalf("list: %d", len(list)) }
-    s.DeleteBook(id)
-    list, _ = s.ListBooks()
-    if len(list) != 0 { t.Fatalf("not empty") }
+	s := newTestStore(t)
+	b := models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"}
+	id, err := s.UpsertBook(b)
+	if err != nil || id <= 0 {
+		t.Fatalf("upsert: %v, %d", err, id)
+	}
+	got, _ := s.GetBook(id)
+	if got.Title != "A" || got.Format != "epub" {
+		t.Fatalf("bad book: %+v", got)
+	}
+	list, _ := s.ListBooks()
+	if len(list) != 1 {
+		t.Fatalf("list: %d", len(list))
+	}
+	s.DeleteBook(id)
+	list, _ = s.ListBooks()
+	if len(list) != 0 {
+		t.Fatalf("not empty")
+	}
 }
 
 func TestUpsertBookUpdates(t *testing.T) {
-    s := newTestStore(t)
-    b := models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"}
-    id, _ := s.UpsertBook(b)
-    b.ID = id; b.Title = "A-new"
-    id2, _ := s.UpsertBook(b)
-    if id != id2 { t.Fatalf("id mismatch") }
-    got, _ := s.GetBook(id)
-    if got.Title != "A-new" { t.Fatalf("not updated") }
+	s := newTestStore(t)
+	b := models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"}
+	id, _ := s.UpsertBook(b)
+	b.ID = id
+	b.Title = "A-new"
+	id2, _ := s.UpsertBook(b)
+	if id != id2 {
+		t.Fatalf("id mismatch")
+	}
+	got, _ := s.GetBook(id)
+	if got.Title != "A-new" {
+		t.Fatalf("not updated")
+	}
 }
 
 func TestProgressCRUD(t *testing.T) {
-    s := newTestStore(t)
-    id, _ := s.UpsertBook(models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"})
-    p, _ := s.GetProgress(id)
-    if p.Chapter != 0 || p.Page != 0 { t.Fatalf("default: %+v", p) }
-    s.SaveProgress(models.ReadingProgress{BookID: id, Chapter: 2, Page: 5})
-    p, _ = s.GetProgress(id)
-    if p.Chapter != 2 || p.Page != 5 { t.Fatalf("saved: %+v", p) }
+	s := newTestStore(t)
+	id, _ := s.UpsertBook(models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"})
+	p, _ := s.GetProgress(id)
+	if p.Chapter != 0 || p.Page != 0 {
+		t.Fatalf("default: %+v", p)
+	}
+	s.SaveProgress(models.ReadingProgress{BookID: id, Chapter: 2, Page: 5})
+	p, _ = s.GetProgress(id)
+	if p.Chapter != 2 || p.Page != 5 {
+		t.Fatalf("saved: %+v", p)
+	}
 }
 
 func TestBookmarksCRUD(t *testing.T) {
-    s := newTestStore(t)
-    bid, _ := s.UpsertBook(models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"})
-    id1, _ := s.AddBookmark(models.Bookmark{BookID: bid, Chapter: 1, Page: 2, Label: "m1"})
-    s.AddBookmark(models.Bookmark{BookID: bid, Chapter: 3, Page: 4, Label: "m2"})
-    list, _ := s.ListBookmarks(bid)
-    if len(list) != 2 || list[0].Label != "m1" { t.Fatalf("list: %+v", list) }
-    s.DeleteBookmark(id1)
-    list, _ = s.ListBookmarks(bid)
-    if len(list) != 1 { t.Fatalf("after delete: %d", len(list)) }
+	s := newTestStore(t)
+	bid, _ := s.UpsertBook(models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"})
+	id1, _ := s.AddBookmark(models.Bookmark{BookID: bid, Chapter: 1, Page: 2, Label: "m1"})
+	s.AddBookmark(models.Bookmark{BookID: bid, Chapter: 3, Page: 4, Label: "m2"})
+	list, _ := s.ListBookmarks(bid)
+	if len(list) != 2 || list[0].Label != "m1" {
+		t.Fatalf("list: %+v", list)
+	}
+	s.DeleteBookmark(id1)
+	list, _ = s.ListBookmarks(bid)
+	if len(list) != 1 {
+		t.Fatalf("after delete: %d", len(list))
+	}
 }
 
 func TestLibraryDirsCRUD(t *testing.T) {
@@ -148,5 +173,60 @@ func TestDeleteBooksUnderDirCascadesProgressAndBookmarks(t *testing.T) {
 	}
 	if len(marks) != 0 {
 		t.Fatalf("bookmarks not cascaded: %+v", marks)
+	}
+}
+
+func TestDeleteBooksUnderDirKeepsSiblingDirectories(t *testing.T) {
+	st := newTestStore(t)
+
+	deleteID, err := st.UpsertBook(models.Book{FilePath: "/library/books/sub/a.txt", Title: "delete", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert delete: %v", err)
+	}
+	keepID, err := st.UpsertBook(models.Book{FilePath: "/library/bookshelf/b.txt", Title: "keep", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert keep: %v", err)
+	}
+
+	if err := st.DeleteBooksUnderDir("/library/books"); err != nil {
+		t.Fatalf("delete under dir: %v", err)
+	}
+
+	if _, err := st.GetBook(deleteID); err == nil {
+		t.Fatal("book under deleted dir still exists")
+	}
+	if got, err := st.GetBook(keepID); err != nil || got.ID != keepID {
+		t.Fatalf("sibling book deleted: book=%+v err=%v", got, err)
+	}
+}
+
+func TestDeleteBooksUnderDirTreatsPercentAndUnderscoreLiterally(t *testing.T) {
+	st := newTestStore(t)
+
+	deleteID, err := st.UpsertBook(models.Book{FilePath: "/library/books_%/sub/a.txt", Title: "delete", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert delete: %v", err)
+	}
+	underscoreSiblingID, err := st.UpsertBook(models.Book{FilePath: "/library/booksA%/sub/b.txt", Title: "keep underscore", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert underscore sibling: %v", err)
+	}
+	percentSiblingID, err := st.UpsertBook(models.Book{FilePath: "/library/books_long_name/sub/c.txt", Title: "keep percent", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert percent sibling: %v", err)
+	}
+
+	if err := st.DeleteBooksUnderDir("/library/books_%"); err != nil {
+		t.Fatalf("delete under dir: %v", err)
+	}
+
+	if _, err := st.GetBook(deleteID); err == nil {
+		t.Fatal("book under deleted wildcard dir still exists")
+	}
+	if got, err := st.GetBook(underscoreSiblingID); err != nil || got.ID != underscoreSiblingID {
+		t.Fatalf("underscore wildcard sibling deleted: book=%+v err=%v", got, err)
+	}
+	if got, err := st.GetBook(percentSiblingID); err != nil || got.ID != percentSiblingID {
+		t.Fatalf("percent wildcard sibling deleted: book=%+v err=%v", got, err)
 	}
 }
