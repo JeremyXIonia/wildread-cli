@@ -92,6 +92,53 @@ func TestE2EFlow(t *testing.T) {
 	}
 }
 
+func TestManagedDirectoryDeleteRemovesBooksAndProgress(t *testing.T) {
+	dir := t.TempDir()
+	bookPath := filepath.Join(dir, "managed.txt")
+	if err := writeFile(bookPath, []byte("Managed\n\n第一章\n内容")); err != nil {
+		t.Fatalf("write book: %v", err)
+	}
+
+	st, err := store.Open(filepath.Join(t.TempDir(), "e2e.db"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer st.Close()
+
+	id, err := st.AddLibraryDir(dir, true)
+	if err != nil {
+		t.Fatalf("add dir: %v", err)
+	}
+	book, err := parser.ParseByExtension(bookPath)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	book.FilePath = bookPath
+	bookID, err := st.UpsertBook(*book)
+	if err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	if err := st.SaveProgress(models.ReadingProgress{BookID: bookID, Chapter: 1, Page: 2}); err != nil {
+		t.Fatalf("progress: %v", err)
+	}
+	if _, err := st.AddBookmark(models.Bookmark{BookID: bookID, Chapter: 0, Page: 0, Label: "mark"}); err != nil {
+		t.Fatalf("bookmark: %v", err)
+	}
+	if err := st.DeleteLibraryDir(id); err != nil {
+		t.Fatalf("delete dir: %v", err)
+	}
+	books, err := st.ListBooks()
+	if err != nil {
+		t.Fatalf("books: %v", err)
+	}
+	if len(books) != 0 {
+		t.Fatalf("books remain: %+v", books)
+	}
+	if _, err := readFile(bookPath); err != nil {
+		t.Fatalf("original file should remain: %v", err)
+	}
+}
+
 func copyFile(src, dst string) error {
 	data, err := readFile(src)
 	if err != nil {

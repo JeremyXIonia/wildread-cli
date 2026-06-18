@@ -107,13 +107,16 @@ source ~/.zshrc
 ## 使用
 
 ```bash
-# 默认扫描 ./books 目录
+# 默认使用 ~/.cli-read/novel-reader.db 和 ~/.cli-read/.book
 reader
 
-# 指定书籍目录
+# 指定应用数据目录
+reader --data-dir /path/to/app-data
+
+# 临时扫描一个书籍目录（不保存到目录列表）
 reader --dir /path/to/books
 
-# 指定数据库路径
+# 高级：指定数据库文件
 reader --db /path/to/db.sqlite
 ```
 
@@ -127,7 +130,19 @@ reader --db /path/to/db.sqlite
 | `k` / `↑` | 向上移动 |
 | `Enter` | 打开选中书籍 |
 | `/` | 搜索书名 |
+| `D` | 管理书籍目录 |
 | `q` | 退出 |
+
+### 目录管理
+
+| 键 | 功能 |
+|----|------|
+| `j` / `↓` | 向下移动 |
+| `k` / `↑` | 向上移动 |
+| `a` | 添加目录 |
+| `d` | 删除目录及相关书籍记录 |
+| `r` | 重新扫描 |
+| `q` / `Esc` | 返回书架 |
 
 ### 阅读
 
@@ -160,11 +175,20 @@ reader --db /path/to/db.sqlite
 
 ## 数据存储
 
-所有数据保存在一个 SQLite 文件中（默认 `./novel-reader.db`）：
+默认应用数据目录为 `~/.cli-read`：
+
+```text
+~/.cli-read/
+├── novel-reader.db
+└── .book/
+```
+
+书籍目录列表保存在 SQLite 的 `library_dirs` 表中。首次启动没有配置目录时，会自动使用 `~/.cli-read/.book`。
 
 - `books` — 书架
 - `reading_progress` — 每本书的阅读进度
 - `bookmarks` — 书签
+- `library_dirs` — 书籍目录列表
 
 ## 项目结构
 
