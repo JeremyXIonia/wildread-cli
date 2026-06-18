@@ -1,0 +1,14 @@
+# Binaries
+*.exe
+novel-reader*
+reader*
+
+# Database
+*.db
+
+# Books directory (user content)
+/books/
+
+# OS
+.DS_Store
+Thumbs.db
