@@ -6,6 +6,7 @@ type Book struct {
 	Title    string
 	Author   string
 	Format   string
+	Chapters []Chapter
 }
 
 type Chapter struct {
