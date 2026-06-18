@@ -83,6 +83,37 @@ func TestRefreshBooksScansMultipleDirs(t *testing.T) {
 	}
 }
 
+func TestRefreshBooksPreservesExistingBooksWhenOneDirScanFails(t *testing.T) {
+	st := newRootTestStore(t)
+	dirOK := t.TempDir()
+	dirFailed := t.TempDir()
+	okPath := filepath.Join(dirOK, "ok.txt")
+	failedPath := filepath.Join(dirFailed, "preserve.txt")
+	writeTestBook(t, okPath, "OK")
+	writeTestBook(t, failedPath, "Preserve")
+
+	if _, _, err := refreshBooks(st, []string{dirOK, dirFailed}); err != nil {
+		t.Fatalf("initial refresh: %v", err)
+	}
+	if err := os.RemoveAll(dirFailed); err != nil {
+		t.Fatalf("remove failed dir: %v", err)
+	}
+
+	books, scanErrs, err := refreshBooks(st, []string{dirOK, dirFailed})
+	if err != nil {
+		t.Fatalf("refresh with failed dir: %v", err)
+	}
+	if len(scanErrs) != 1 {
+		t.Fatalf("scan errors: %+v", scanErrs)
+	}
+	if !hasBookPath(books, failedPath) {
+		t.Fatalf("expected failed directory book %s to be preserved, books: %+v", failedPath, books)
+	}
+	if !hasBookPath(books, okPath) {
+		t.Fatalf("expected successful directory book %s to remain, books: %+v", okPath, books)
+	}
+}
+
 func TestSyncBooksPrunesMissingFromFullScan(t *testing.T) {
 	st := newRootTestStore(t)
 	dir := t.TempDir()
@@ -102,6 +133,27 @@ func TestSyncBooksPrunesMissingFromFullScan(t *testing.T) {
 	if len(books) != 0 {
 		t.Fatalf("books after prune: %+v", books)
 	}
+}
+
+func TestStartupStatusSurfacesScanWarningsWhenDefaultCreated(t *testing.T) {
+	status := startupStatus(2, true, []error{os.ErrNotExist}, filepath.Join(t.TempDir(), ".book"), "")
+	want := "已扫描 2 本书，1 个目录扫描失败"
+	if status != want {
+		t.Fatalf("status = %q, want %q", status, want)
+	}
+}
+
+func hasBookPath(books []models.Book, path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path
+	}
+	for _, book := range books {
+		if book.FilePath == abs {
+			return true
+		}
+	}
+	return false
 }
 
 func writeTestBook(t *testing.T, path, title string) {

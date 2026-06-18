@@ -86,15 +86,7 @@ func main() {
 		mode:           modeBookshelf,
 		bookshelf:      app.NewBookshelfModel(books),
 	}
-	status := fmt.Sprintf("已扫描 %d 本书", len(books))
-	if defaultCreated {
-		status = fmt.Sprintf("未配置书籍目录，已使用默认目录 %s", paths.DefaultBookDir)
-	} else if len(scanErrs) > 0 {
-		status = fmt.Sprintf("已扫描 %d 本书，%d 个目录扫描失败", len(books), len(scanErrs))
-	} else if paths.TempBookDir != "" {
-		status = fmt.Sprintf("已临时扫描目录 %s；如需长期使用，请在目录管理中添加", paths.TempBookDir)
-	}
-	root.bookshelf.SetStatus(status)
+	root.bookshelf.SetStatus(startupStatus(len(books), defaultCreated, scanErrs, paths.DefaultBookDir, paths.TempBookDir))
 
 	p := tea.NewProgram(root, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
@@ -159,11 +151,58 @@ func scanAllDirs(dirs []string) ([]string, []error) {
 
 func refreshBooks(st *store.Store, dirs []string) ([]models.Book, []error, error) {
 	paths, scanErrs := scanAllDirs(dirs)
-	if err := syncBooks(st, paths); err != nil {
+	if len(scanErrs) > 0 {
+		if err := upsertScannedBooks(st, paths); err != nil {
+			return nil, scanErrs, err
+		}
+	} else if err := syncBooks(st, paths); err != nil {
 		return nil, scanErrs, err
 	}
 	books, err := st.ListBooks()
 	return books, scanErrs, err
+}
+
+func startupStatus(bookCount int, defaultCreated bool, scanErrs []error, defaultBookDir, tempBookDir string) string {
+	if len(scanErrs) > 0 {
+		return fmt.Sprintf("已扫描 %d 本书，%d 个目录扫描失败", bookCount, len(scanErrs))
+	}
+	if defaultCreated {
+		return fmt.Sprintf("未配置书籍目录，已使用默认目录 %s", defaultBookDir)
+	}
+	if tempBookDir != "" {
+		return fmt.Sprintf("已临时扫描目录 %s；如需长期使用，请在目录管理中添加", tempBookDir)
+	}
+	return fmt.Sprintf("已扫描 %d 本书", bookCount)
+}
+
+func upsertScannedBooks(st *store.Store, paths []string) error {
+	existing, err := st.ListBooks()
+	if err != nil {
+		return err
+	}
+	existingByPath := map[string]bool{}
+	for _, b := range existing {
+		existingByPath[b.FilePath] = true
+	}
+	for _, p := range paths {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			abs = p
+		}
+		if existingByPath[abs] {
+			continue
+		}
+		book, err := parser.ParseByExtension(abs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "解析失败 %s: %v\n", abs, err)
+			continue
+		}
+		book.FilePath = abs
+		if _, err := st.UpsertBook(*book); err != nil {
+			fmt.Fprintf(os.Stderr, "入库失败 %s: %v\n", abs, err)
+		}
+	}
+	return nil
 }
 
 func syncBooks(st *store.Store, paths []string) error {
