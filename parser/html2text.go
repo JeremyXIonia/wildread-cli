@@ -31,7 +31,7 @@ func HTMLToText(input string) (string, []string) {
 		}
 		tag := strings.ToLower(n.Data)
 
-		if tag == "script" || tag == "style" {
+		if tag == "script" || tag == "style" || tag == "title" || tag == "head" {
 			return
 		}
 
