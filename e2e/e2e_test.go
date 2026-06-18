@@ -134,6 +134,20 @@ func TestManagedDirectoryDeleteRemovesBooksAndProgress(t *testing.T) {
 	if len(books) != 0 {
 		t.Fatalf("books remain: %+v", books)
 	}
+	progress, err := st.GetProgress(bookID)
+	if err != nil {
+		t.Fatalf("get progress: %v", err)
+	}
+	if progress.Chapter != 0 || progress.Page != 0 {
+		t.Fatalf("progress not cascaded: %+v", progress)
+	}
+	bookmarks, err := st.ListBookmarks(bookID)
+	if err != nil {
+		t.Fatalf("list bookmarks: %v", err)
+	}
+	if len(bookmarks) != 0 {
+		t.Fatalf("bookmarks not cascaded: %+v", bookmarks)
+	}
 	if _, err := readFile(bookPath); err != nil {
 		t.Fatalf("original file should remain: %v", err)
 	}
