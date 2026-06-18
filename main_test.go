@@ -114,6 +114,79 @@ func TestRefreshBooksPreservesExistingBooksWhenOneDirScanFails(t *testing.T) {
 	}
 }
 
+func TestRefreshBooksPrunesStaleBooksUnderSuccessfulRootWhenAnotherRootFails(t *testing.T) {
+	st := newRootTestStore(t)
+	dirOK := t.TempDir()
+	dirFailed := t.TempDir()
+	staleOKPath := filepath.Join(dirOK, "stale.txt")
+	freshOKPath := filepath.Join(dirOK, "fresh.txt")
+	failedPath := filepath.Join(dirFailed, "preserve.txt")
+	writeTestBook(t, staleOKPath, "Stale")
+	writeTestBook(t, failedPath, "Preserve")
+
+	if _, _, err := refreshBooks(st, []string{dirOK, dirFailed}); err != nil {
+		t.Fatalf("initial refresh: %v", err)
+	}
+	if err := os.Remove(staleOKPath); err != nil {
+		t.Fatalf("remove stale book: %v", err)
+	}
+	writeTestBook(t, freshOKPath, "Fresh")
+	if err := os.RemoveAll(dirFailed); err != nil {
+		t.Fatalf("remove failed dir: %v", err)
+	}
+
+	books, scanErrs, err := refreshBooks(st, []string{dirOK, dirFailed})
+	if err != nil {
+		t.Fatalf("refresh with failed dir: %v", err)
+	}
+	if len(scanErrs) != 1 {
+		t.Fatalf("scan errors: %+v", scanErrs)
+	}
+	if hasBookPath(books, staleOKPath) {
+		t.Fatalf("expected stale successful-root book %s to be pruned, books: %+v", staleOKPath, books)
+	}
+	if !hasBookPath(books, freshOKPath) {
+		t.Fatalf("expected fresh successful-root book %s to be upserted, books: %+v", freshOKPath, books)
+	}
+	if !hasBookPath(books, failedPath) {
+		t.Fatalf("expected failed-root book %s to be preserved, books: %+v", failedPath, books)
+	}
+}
+
+func TestRefreshBooksPrunesManagedStaleBooksWhenTemporaryRootFails(t *testing.T) {
+	st := newRootTestStore(t)
+	managedDir := t.TempDir()
+	tempDir := t.TempDir()
+	staleManagedPath := filepath.Join(managedDir, "stale.txt")
+	freshManagedPath := filepath.Join(managedDir, "fresh.txt")
+	writeTestBook(t, staleManagedPath, "Stale")
+
+	if _, _, err := refreshBooks(st, []string{managedDir}); err != nil {
+		t.Fatalf("initial refresh: %v", err)
+	}
+	if err := os.Remove(staleManagedPath); err != nil {
+		t.Fatalf("remove stale managed book: %v", err)
+	}
+	writeTestBook(t, freshManagedPath, "Fresh")
+	if err := os.RemoveAll(tempDir); err != nil {
+		t.Fatalf("remove temp dir: %v", err)
+	}
+
+	books, scanErrs, err := refreshBooks(st, []string{managedDir, tempDir})
+	if err != nil {
+		t.Fatalf("refresh with failed temp dir: %v", err)
+	}
+	if len(scanErrs) != 1 {
+		t.Fatalf("scan errors: %+v", scanErrs)
+	}
+	if hasBookPath(books, staleManagedPath) {
+		t.Fatalf("expected stale managed book %s to be pruned, books: %+v", staleManagedPath, books)
+	}
+	if !hasBookPath(books, freshManagedPath) {
+		t.Fatalf("expected fresh managed book %s to be upserted, books: %+v", freshManagedPath, books)
+	}
+}
+
 func TestSyncBooksPrunesMissingFromFullScan(t *testing.T) {
 	st := newRootTestStore(t)
 	dir := t.TempDir()

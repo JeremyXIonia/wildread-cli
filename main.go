@@ -125,41 +125,48 @@ func configuredScanDirs(st *store.Store, tempDir string) ([]string, error) {
 	return dirs, nil
 }
 
+type scanResult struct {
+	paths           []string
+	successfulRoots []string
+	failedRoots     []string
+	errs            []error
+}
+
 func scanAllDirs(dirs []string) ([]string, []error) {
+	result := scanDirs(dirs)
+	return result.paths, result.errs
+}
+
+func scanDirs(dirs []string) scanResult {
 	seen := map[string]bool{}
-	var paths []string
-	var errs []error
+	var result scanResult
 	for _, dir := range dirs {
+		root := absolutePath(dir)
 		scanned, err := parser.Scan(dir)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", dir, err))
+			result.failedRoots = append(result.failedRoots, root)
+			result.errs = append(result.errs, fmt.Errorf("%s: %w", dir, err))
 			continue
 		}
+		result.successfulRoots = append(result.successfulRoots, root)
 		for _, p := range scanned {
-			abs, err := filepath.Abs(p)
-			if err != nil {
-				abs = p
-			}
+			abs := absolutePath(p)
 			if !seen[abs] {
 				seen[abs] = true
-				paths = append(paths, abs)
+				result.paths = append(result.paths, abs)
 			}
 		}
 	}
-	return paths, errs
+	return result
 }
 
 func refreshBooks(st *store.Store, dirs []string) ([]models.Book, []error, error) {
-	paths, scanErrs := scanAllDirs(dirs)
-	if len(scanErrs) > 0 {
-		if err := upsertScannedBooks(st, paths); err != nil {
-			return nil, scanErrs, err
-		}
-	} else if err := syncBooks(st, paths); err != nil {
-		return nil, scanErrs, err
+	result := scanDirs(dirs)
+	if err := syncBooksForRoots(st, result.paths, result.successfulRoots, result.failedRoots); err != nil {
+		return nil, result.errs, err
 	}
 	books, err := st.ListBooks()
-	return books, scanErrs, err
+	return books, result.errs, err
 }
 
 func startupStatus(bookCount int, defaultCreated bool, scanErrs []error, defaultBookDir, tempBookDir string) string {
@@ -175,37 +182,11 @@ func startupStatus(bookCount int, defaultCreated bool, scanErrs []error, default
 	return fmt.Sprintf("已扫描 %d 本书", bookCount)
 }
 
-func upsertScannedBooks(st *store.Store, paths []string) error {
-	existing, err := st.ListBooks()
-	if err != nil {
-		return err
-	}
-	existingByPath := map[string]bool{}
-	for _, b := range existing {
-		existingByPath[b.FilePath] = true
-	}
-	for _, p := range paths {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			abs = p
-		}
-		if existingByPath[abs] {
-			continue
-		}
-		book, err := parser.ParseByExtension(abs)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "解析失败 %s: %v\n", abs, err)
-			continue
-		}
-		book.FilePath = abs
-		if _, err := st.UpsertBook(*book); err != nil {
-			fmt.Fprintf(os.Stderr, "入库失败 %s: %v\n", abs, err)
-		}
-	}
-	return nil
+func syncBooks(st *store.Store, paths []string) error {
+	return syncBooksForRoots(st, paths, nil, nil)
 }
 
-func syncBooks(st *store.Store, paths []string) error {
+func syncBooksForRoots(st *store.Store, paths []string, pruneRoots, preserveRoots []string) error {
 	existing, err := st.ListBooks()
 	if err != nil {
 		return err
@@ -218,10 +199,7 @@ func syncBooks(st *store.Store, paths []string) error {
 
 	seen := map[string]bool{}
 	for _, p := range paths {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			abs = p
-		}
+		abs := absolutePath(p)
 		seen[abs] = true
 		if _, ok := existingByPath[abs]; ok {
 			continue
@@ -238,13 +216,51 @@ func syncBooks(st *store.Store, paths []string) error {
 	}
 
 	for _, b := range existing {
-		if !seen[b.FilePath] {
+		if !seen[b.FilePath] && shouldPruneBook(b.FilePath, pruneRoots, preserveRoots) {
 			if err := st.DeleteBook(b.ID); err != nil {
 				fmt.Fprintf(os.Stderr, "删除失败 %d: %v\n", b.ID, err)
 			}
 		}
 	}
 	return nil
+}
+
+func shouldPruneBook(bookPath string, pruneRoots, preserveRoots []string) bool {
+	absBookPath := absolutePath(bookPath)
+	for _, root := range preserveRoots {
+		if pathWithinRoot(absBookPath, root) {
+			return false
+		}
+	}
+	if len(pruneRoots) == 0 {
+		return true
+	}
+	for _, root := range pruneRoots {
+		if pathWithinRoot(absBookPath, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func pathWithinRoot(path, root string) bool {
+	if path == root {
+		return true
+	}
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != "." && rel != ".." && !startsWithDotDot(rel)
+}
+
+func startsWithDotDot(path string) bool {
+	return len(path) > 3 && path[:3] == ".."+string(os.PathSeparator)
+}
+
+func absolutePath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return abs
 }
 
 func (m rootModel) Init() tea.Cmd { return nil }
