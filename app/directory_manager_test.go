@@ -1,6 +1,8 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,6 +49,54 @@ func TestDirectoryManagerAddEmitsAddMessage(t *testing.T) {
 	}
 	if add.Path != path || add.Create {
 		t.Fatalf("add msg: %+v", add)
+	}
+}
+
+func TestDirectoryManagerRejectsExistingRegularFileAsLibraryDir(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "not-a-dir.txt")
+	if err := os.WriteFile(filePath, []byte("not a directory"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	m := NewDirectoryManagerModel(testDirs())
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(DirectoryManagerModel)
+	for _, r := range filePath {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(DirectoryManagerModel)
+	}
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(DirectoryManagerModel)
+	if cmd != nil {
+		t.Fatalf("expected no add command for regular file")
+	}
+	if m.mode != dirModeList {
+		t.Fatalf("mode: %d", m.mode)
+	}
+	view := m.View()
+	want := "不是目录: " + filePath
+	if !strings.Contains(view, want) {
+		t.Fatalf("view missing %q: %s", want, view)
+	}
+}
+
+func TestDirectoryManagerAddEmptyInputStatusIsVisible(t *testing.T) {
+	m := NewDirectoryManagerModel(testDirs())
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(DirectoryManagerModel)
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(DirectoryManagerModel)
+	if cmd != nil {
+		t.Fatalf("expected no command for empty input")
+	}
+	if m.mode != dirModeAdd {
+		t.Fatalf("mode: %d", m.mode)
+	}
+	view := m.View()
+	if !strings.Contains(view, "目录不能为空") {
+		t.Fatalf("add view missing empty-input status: %s", view)
 	}
 }
 

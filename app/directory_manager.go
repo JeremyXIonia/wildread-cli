@@ -106,7 +106,8 @@ func (m DirectoryManagerModel) updateAdd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 		m.input.Blur()
-		if _, err := os.Stat(path); err != nil {
+		info, err := os.Stat(path)
+		if err != nil {
 			if os.IsNotExist(err) {
 				m.mode = dirModeConfirmCreate
 				m.pendingPath = path
@@ -114,6 +115,12 @@ func (m DirectoryManagerModel) updateAdd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.mode = dirModeList
 			m.status = "无法检查目录：" + err.Error()
+			return m, nil
+		}
+		if !info.IsDir() {
+			m.mode = dirModeList
+			m.status = "不是目录: " + path
+			m.pendingPath = ""
 			return m, nil
 		}
 
@@ -162,7 +169,18 @@ func (m DirectoryManagerModel) updateConfirmDelete(msg tea.KeyMsg) (tea.Model, t
 func (m DirectoryManagerModel) View() string {
 	switch m.mode {
 	case dirModeAdd:
-		return "添加目录：\n" + m.input.View() + "\n\n" + ui.HintStyle.Render("Enter 保存  Esc/q 取消")
+		var b strings.Builder
+		b.WriteString("添加目录：\n")
+		b.WriteString(m.input.View())
+		b.WriteString("\n")
+		if m.status != "" {
+			b.WriteString("\n")
+			b.WriteString(ui.StatusStyle.Render(m.status))
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+		b.WriteString(ui.HintStyle.Render("Enter 保存  Esc/q 取消"))
+		return b.String()
 	case dirModeConfirmCreate:
 		return fmt.Sprintf("目录不存在：%s\n\n是否创建该目录并加入书籍目录？\n\n输入 y 确认创建，Esc/q/n 取消", m.pendingPath)
 	case dirModeConfirmDelete:
