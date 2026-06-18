@@ -44,6 +44,10 @@ func NewDirectoryManagerModel(dirs []models.LibraryDir) DirectoryManagerModel {
 	}
 }
 
+func (m *DirectoryManagerModel) SetStatus(status string) {
+	m.status = status
+}
+
 func (m DirectoryManagerModel) Init() tea.Cmd { return nil }
 
 func (m DirectoryManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

@@ -25,6 +25,14 @@ func TestOpenClose(t *testing.T) {
 	}
 }
 
+func TestOpenConstrainsPoolToOneConnectionForConnectionLocalPragmas(t *testing.T) {
+	s := newTestStore(t)
+	stats := s.db.Stats()
+	if stats.MaxOpenConnections != 1 {
+		t.Fatalf("MaxOpenConnections = %d, want 1 so every operation uses the foreign_keys-enabled connection", stats.MaxOpenConnections)
+	}
+}
+
 func TestBooksCRUD(t *testing.T) {
 	s := newTestStore(t)
 	b := models.Book{FilePath: "/a.epub", Title: "A", Format: "epub"}
@@ -297,5 +305,29 @@ func TestDeleteBooksUnderDirTreatsPercentAndUnderscoreLiterally(t *testing.T) {
 	}
 	if got, err := st.GetBook(percentSiblingID); err != nil || got.ID != percentSiblingID {
 		t.Fatalf("percent wildcard sibling deleted: book=%+v err=%v", got, err)
+	}
+}
+
+func TestDeleteBooksUnderDirDeletesNonASCIIChildPath(t *testing.T) {
+	st := newTestStore(t)
+
+	deleteID, err := st.UpsertBook(models.Book{FilePath: "/tmp/小说/a.txt", Title: "delete", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert delete: %v", err)
+	}
+	keepID, err := st.UpsertBook(models.Book{FilePath: "/tmp/小说家/a.txt", Title: "keep", Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert keep: %v", err)
+	}
+
+	if err := st.DeleteBooksUnderDir("/tmp/小说"); err != nil {
+		t.Fatalf("delete under non-ASCII dir: %v", err)
+	}
+
+	if _, err := st.GetBook(deleteID); err == nil {
+		t.Fatal("book under non-ASCII deleted dir still exists")
+	}
+	if got, err := st.GetBook(keepID); err != nil || got.ID != keepID {
+		t.Fatalf("non-ASCII sibling book deleted: book=%+v err=%v", got, err)
 	}
 }

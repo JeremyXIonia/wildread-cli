@@ -101,17 +101,17 @@ func (m rootModel) loadLibraryDirs() ([]models.LibraryDir, error) {
 	return m.store.ListLibraryDirs()
 }
 
-func (m rootModel) refreshBookshelf(status string) (rootModel, error) {
+func (m rootModel) refreshBookshelf(status string) (rootModel, string, error) {
 	if _, err := ensureDefaultLibraryDir(m.store, m.defaultBookDir); err != nil {
-		return m, err
+		return m, "", err
 	}
 	dirs, err := configuredScanDirs(m.store, m.tempBookDir)
 	if err != nil {
-		return m, err
+		return m, "", err
 	}
 	books, scanErrs, err := refreshBooks(m.store, dirs)
 	if err != nil {
-		return m, err
+		return m, "", err
 	}
 	m.bookshelf = app.NewBookshelfModel(books)
 	if status == "" {
@@ -120,8 +120,8 @@ func (m rootModel) refreshBookshelf(status string) (rootModel, error) {
 	if len(scanErrs) > 0 {
 		status = fmt.Sprintf("%s，%d 个目录扫描失败", status, len(scanErrs))
 	}
-	m.bookshelf.SetStatus(status)
-	return m, nil
+	m = m.setStatus(status)
+	return m, status, nil
 }
 
 func (m rootModel) reloadDirectoryManager() rootModel {
@@ -131,6 +131,15 @@ func (m rootModel) reloadDirectoryManager() rootModel {
 		return m
 	}
 	m.directoryManager = app.NewDirectoryManagerModel(dirs)
+	return m
+}
+
+func (m rootModel) setStatus(status string) rootModel {
+	if m.mode == modeDirectoryManager {
+		m.directoryManager.SetStatus(status)
+		return m
+	}
+	m.bookshelf.SetStatus(status)
 	return m
 }
 
@@ -201,7 +210,13 @@ func scanDirs(dirs []string) scanResult {
 
 func refreshBooks(st *store.Store, dirs []string) ([]models.Book, []error, error) {
 	result := scanDirs(dirs)
-	if err := syncBooksForRoots(st, result.paths, result.successfulRoots, result.failedRoots); err != nil {
+	pruneRoots := result.successfulRoots
+	if len(result.successfulRoots) > 0 {
+		pruneRoots = nil
+	} else if len(result.failedRoots) > 0 {
+		pruneRoots = []string{}
+	}
+	if err := syncBooksForRoots(st, result.paths, pruneRoots, result.failedRoots); err != nil {
 		return nil, result.errs, err
 	}
 	books, err := st.ListBooks()
@@ -271,8 +286,11 @@ func shouldPruneBook(bookPath string, pruneRoots, preserveRoots []string) bool {
 			return false
 		}
 	}
-	if len(pruneRoots) == 0 {
+	if pruneRoots == nil {
 		return true
+	}
+	if len(pruneRoots) == 0 {
+		return false
 	}
 	for _, root := range pruneRoots {
 		if pathWithinRoot(absBookPath, root) {
@@ -309,7 +327,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case app.OpenDirectoryManagerMsg:
 		dirs, err := m.loadLibraryDirs()
 		if err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("读取目录失败: %v", err))
+			m = m.setStatus(fmt.Sprintf("读取目录失败: %v", err))
 			return m, nil
 		}
 		m.directoryManager = app.NewDirectoryManagerModel(dirs)
@@ -322,12 +340,14 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case app.RescanLibraryDirsMsg:
 		var err error
-		m, err = m.refreshBookshelf("目录已重新扫描")
+		var status string
+		m, status, err = m.refreshBookshelf("目录已重新扫描")
 		if err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("扫描失败: %v", err))
+			status = fmt.Sprintf("扫描失败: %v", err)
 		}
 		m = m.reloadDirectoryManager()
 		m.mode = modeDirectoryManager
+		m = m.setStatus(status)
 		return m, nil
 
 	case app.AddLibraryDirMsg:
@@ -340,48 +360,52 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if statErr != nil {
 			if msg.Create {
 				if err := os.MkdirAll(path, 0755); err != nil {
-					m.bookshelf.SetStatus(fmt.Sprintf("创建目录失败: %v", err))
+					m = m.setStatus(fmt.Sprintf("创建目录失败: %v", err))
 					return m, nil
 				}
 			} else {
-				m.bookshelf.SetStatus(fmt.Sprintf("目录不存在: %s", path))
+				m = m.setStatus(fmt.Sprintf("目录不存在: %s", path))
 				return m, nil
 			}
 		} else if !info.IsDir() {
-			m.bookshelf.SetStatus(fmt.Sprintf("不是目录: %s", path))
+			m = m.setStatus(fmt.Sprintf("不是目录: %s", path))
 			return m, nil
 		}
 		if _, err := m.store.AddLibraryDir(path, false); err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("添加目录失败: %v", err))
+			m = m.setStatus(fmt.Sprintf("添加目录失败: %v", err))
 			return m, nil
 		}
-		m, err = m.refreshBookshelf(fmt.Sprintf("已添加目录 %s", path))
+		var status string
+		m, status, err = m.refreshBookshelf(fmt.Sprintf("已添加目录 %s", path))
 		if err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("扫描失败: %v", err))
+			status = fmt.Sprintf("扫描失败: %v", err)
 		}
 		m = m.reloadDirectoryManager()
 		m.mode = modeDirectoryManager
+		m = m.setStatus(status)
 		return m, nil
 
 	case app.DeleteLibraryDirMsg:
 		if err := m.store.DeleteLibraryDir(msg.Dir.ID); err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("删除目录失败: %v", err))
+			m = m.setStatus(fmt.Sprintf("删除目录失败: %v", err))
 			return m, nil
 		}
 		var err error
-		m, err = m.refreshBookshelf(fmt.Sprintf("已删除目录 %s", msg.Dir.Path))
+		var status string
+		m, status, err = m.refreshBookshelf(fmt.Sprintf("已删除目录 %s", msg.Dir.Path))
 		if err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("扫描失败: %v", err))
+			status = fmt.Sprintf("扫描失败: %v", err)
 		}
 		m = m.reloadDirectoryManager()
 		m.mode = modeDirectoryManager
+		m = m.setStatus(status)
 		return m, nil
 
 	case app.OpenBookMsg:
 		// 重新解析文件以获取章节内容（store 只存了 metadata）
 		parsed, err := parser.ParseByExtension(msg.Book.FilePath)
 		if err != nil {
-			m.bookshelf.SetStatus(fmt.Sprintf("解析失败: %v", err))
+			m = m.setStatus(fmt.Sprintf("解析失败: %v", err))
 			return m, nil
 		}
 		parsed.ID = msg.Book.ID

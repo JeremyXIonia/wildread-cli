@@ -189,6 +189,34 @@ func TestRefreshBooksPrunesManagedStaleBooksWhenTemporaryRootFails(t *testing.T)
 	}
 }
 
+func TestRefreshBooksPrunesTemporaryDirBooksWhenTempRootNoLongerActive(t *testing.T) {
+	st := newRootTestStore(t)
+	managedDir := t.TempDir()
+	tempDir := t.TempDir()
+	managedPath := filepath.Join(managedDir, "managed.txt")
+	tempPath := filepath.Join(tempDir, "temp.txt")
+	writeTestBook(t, managedPath, "Managed")
+	writeTestBook(t, tempPath, "Temp")
+
+	if _, _, err := refreshBooks(st, []string{managedDir, tempDir}); err != nil {
+		t.Fatalf("initial refresh with temp root: %v", err)
+	}
+
+	books, scanErrs, err := refreshBooks(st, []string{managedDir})
+	if err != nil {
+		t.Fatalf("refresh without temp root: %v", err)
+	}
+	if len(scanErrs) != 0 {
+		t.Fatalf("scan errors: %+v", scanErrs)
+	}
+	if hasBookPath(books, tempPath) {
+		t.Fatalf("expected temp-root book %s to be pruned after temp root was removed, books: %+v", tempPath, books)
+	}
+	if !hasBookPath(books, managedPath) {
+		t.Fatalf("expected managed-root book %s to remain, books: %+v", managedPath, books)
+	}
+}
+
 func TestSyncBooksPrunesMissingFromFullScan(t *testing.T) {
 	st := newRootTestStore(t)
 	dir := t.TempDir()
@@ -288,6 +316,88 @@ func TestRootDeleteLibraryDirDeletesAssociatedBooksOnce(t *testing.T) {
 	}
 	if len(bookmarks) != 0 {
 		t.Fatalf("bookmarks after delete: %+v", bookmarks)
+	}
+}
+
+func TestRootRescanLibraryDirsShowsWarningsInDirectoryManager(t *testing.T) {
+	st := newRootTestStore(t)
+	missingDir := filepath.Join(t.TempDir(), "missing")
+	if _, err := st.AddLibraryDir(missingDir, false); err != nil {
+		t.Fatalf("add missing dir: %v", err)
+	}
+	m := rootModel{
+		store:            st,
+		mode:             modeDirectoryManager,
+		defaultBookDir:   t.TempDir(),
+		directoryManager: app.NewDirectoryManagerModel([]models.LibraryDir{{ID: 1, Path: missingDir}}),
+		bookshelf:        app.NewBookshelfModel(nil),
+	}
+
+	updated, _ := m.Update(app.RescanLibraryDirsMsg{})
+	root := updated.(rootModel)
+
+	if root.mode != modeDirectoryManager {
+		t.Fatalf("mode = %v, want modeDirectoryManager", root.mode)
+	}
+	view := root.View()
+	if !strings.Contains(view, "1 个目录扫描失败") {
+		t.Fatalf("directory manager view missing scan warning: %s", view)
+	}
+}
+
+func TestRootAddLibraryDirErrorShowsInDirectoryManager(t *testing.T) {
+	st := newRootTestStore(t)
+	filePath := filepath.Join(t.TempDir(), "not-a-dir.txt")
+	if err := os.WriteFile(filePath, []byte("not a directory"), 0644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	m := rootModel{
+		store:            st,
+		mode:             modeDirectoryManager,
+		directoryManager: app.NewDirectoryManagerModel(nil),
+		bookshelf:        app.NewBookshelfModel(nil),
+	}
+
+	updated, _ := m.Update(app.AddLibraryDirMsg{Path: filePath})
+	root := updated.(rootModel)
+
+	if root.mode != modeDirectoryManager {
+		t.Fatalf("mode = %v, want modeDirectoryManager", root.mode)
+	}
+	view := root.View()
+	want := "不是目录: " + filePath
+	if !strings.Contains(view, want) {
+		t.Fatalf("directory manager view missing %q: %s", want, view)
+	}
+}
+
+func TestRootDeleteLibraryDirErrorShowsInDirectoryManager(t *testing.T) {
+	st := newRootTestStore(t)
+	dir := t.TempDir()
+	dirID, err := st.AddLibraryDir(dir, false)
+	if err != nil {
+		t.Fatalf("add dir: %v", err)
+	}
+	m := rootModel{
+		store:            st,
+		mode:             modeDirectoryManager,
+		directoryManager: app.NewDirectoryManagerModel([]models.LibraryDir{{ID: dirID, Path: dir}}),
+		bookshelf:        app.NewBookshelfModel(nil),
+	}
+	if err := st.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	updated, _ := m.Update(app.DeleteLibraryDirMsg{Dir: models.LibraryDir{ID: dirID, Path: dir}})
+	root := updated.(rootModel)
+
+	if root.mode != modeDirectoryManager {
+		t.Fatalf("mode = %v, want modeDirectoryManager", root.mode)
+	}
+	view := root.View()
+	want := "删除目录失败"
+	if !strings.Contains(view, want) {
+		t.Fatalf("directory manager view missing %q: %s", want, view)
 	}
 }
 

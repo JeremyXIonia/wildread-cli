@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 
 	"github.com/xuanchong/cli-read/models"
 )
@@ -69,14 +70,36 @@ func (s *Store) DeleteBooksUnderDir(dir string) error {
 
 type booksUnderDirDeleter interface {
 	Exec(query string, args ...any) (sql.Result, error)
+	Query(query string, args ...any) (*sql.Rows, error)
 }
 
 func deleteBooksUnderDir(db booksUnderDirDeleter, dir string) error {
 	dir = filepath.Clean(dir)
-	childPrefix := dir + string(filepath.Separator)
-	_, err := db.Exec(
-		`DELETE FROM books WHERE file_path = ? OR substr(file_path, 1, ?) = ?`,
-		dir, len(childPrefix), childPrefix,
-	)
-	return err
+	rows, err := db.Query(`SELECT id, file_path FROM books`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		var path string
+		if err := rows.Scan(&id, &path); err != nil {
+			return err
+		}
+		if path == dir || strings.HasPrefix(path, dir+string(filepath.Separator)) {
+			ids = append(ids, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, id := range ids {
+		if _, err := db.Exec(`DELETE FROM books WHERE id=?`, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
