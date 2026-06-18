@@ -146,7 +146,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
-		if m.mode == modeReader && (msg.String() == "esc" || msg.String() == "q") {
+		if m.mode == modeReader && m.reader != nil && m.reader.IsReading() && (msg.String() == "esc" || msg.String() == "q") {
 			m.mode = modeBookshelf
 			return m, nil
 		}

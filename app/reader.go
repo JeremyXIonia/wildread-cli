@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/xuanchong/cli-read/models"
 	"github.com/xuanchong/cli-read/pager"
@@ -51,16 +51,18 @@ func NewReaderModel(book *models.Book, progress models.ReadingProgress, st *stor
 	if len(book.Chapters) == 0 {
 		book.Chapters = []models.Chapter{{Title: "空", Content: "（无内容）"}}
 	}
-	if chapter >= len(book.Chapters) {
+	if chapter < 0 || chapter >= len(book.Chapters) {
 		chapter = 0
 	}
-
-	p := pager.New(book.Chapters[chapter].Content, 80, 20)
-	if page >= p.PageCount() {
+	if page < 0 {
 		page = 0
 	}
 
+	p := pager.New(book.Chapters[chapter].Content, 80, 20)
+
 	vp := viewport.New(80, 18)
+	// 禁用 viewport 默认按键，由 reader 自己处理翻页
+	vp.KeyMap = viewport.KeyMap{}
 
 	var bms []models.Bookmark
 	if st != nil {
@@ -81,11 +83,21 @@ func NewReaderModel(book *models.Book, progress models.ReadingProgress, st *stor
 }
 
 func (m ReaderModel) Init() tea.Cmd {
-	m.loadPageContent()
-	return m.saveProgress()
+	return nil
+}
+
+// IsReading reports whether the reader is showing the main reading view.
+func (m ReaderModel) IsReading() bool {
+	return m.mode == ModeReading
 }
 
 func (m *ReaderModel) loadPageContent() {
+	if m.page >= m.pager.PageCount() {
+		m.page = m.pager.PageCount() - 1
+	}
+	if m.page < 0 {
+		m.page = 0
+	}
 	content, err := m.pager.Page(m.page)
 	if err != nil {
 		m.status = "页码错误"
@@ -136,9 +148,9 @@ func (m ReaderModel) updateReading(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keys.Back):
 		return m, m.saveProgress()
-	case key.Matches(msg, m.keys.PageDown):
+	case key.Matches(msg, m.keys.Down):
 		m.nextPage()
-	case key.Matches(msg, m.keys.PageUp):
+	case key.Matches(msg, m.keys.Up):
 		m.prevPage()
 	case key.Matches(msg, m.keys.GotoTop):
 		m.page = 0
@@ -243,12 +255,6 @@ func (m *ReaderModel) resize() {
 	m.viewport.Width = bodyWidth
 	m.viewport.Height = bodyHeight
 	m.pager = pager.New(m.book.Chapters[m.chapter].Content, bodyWidth, bodyHeight)
-	if m.page >= m.pager.PageCount() {
-		m.page = m.pager.PageCount() - 1
-		if m.page < 0 {
-			m.page = 0
-		}
-	}
 	m.loadPageContent()
 }
 
@@ -269,7 +275,7 @@ func (m ReaderModel) footer() string {
 		b.WriteString(ui.StatusStyle.Render(m.status))
 	}
 	b.WriteString("  ")
-	b.WriteString(ui.HintStyle.Render("j/k 翻页 o 目录 n 下一章 p 上一章 m 加书签 b 书签 q 返回"))
+	b.WriteString(ui.HintStyle.Render("j/k翻 b签 m签 o录 n/p章 q返"))
 	return b.String()
 }
 

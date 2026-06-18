@@ -2,9 +2,14 @@
 
 ## Build & Run
 ```bash
-cd D:\workspace-latest\cli-read
+go build -o reader .
+./reader --dir ./books
+```
+
+Windows:
+```powershell
 go build -o reader.exe .
-./reader.exe --dir ./books
+.\reader.exe --dir .\books
 ```
 
 ## All Tests

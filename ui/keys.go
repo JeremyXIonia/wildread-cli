@@ -6,8 +6,6 @@ import "github.com/charmbracelet/bubbles/key"
 type KeyMap struct {
 	Up        key.Binding
 	Down      key.Binding
-	PageUp    key.Binding
-	PageDown  key.Binding
 	GotoTop   key.Binding
 	GotoEnd   key.Binding
 	Open      key.Binding
@@ -25,10 +23,8 @@ type KeyMap struct {
 // DefaultKey returns the default key bindings.
 func DefaultKey() KeyMap {
 	return KeyMap{
-		Up:        key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k/↑", "上移")),
-		Down:      key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j/↓", "下移")),
-		PageUp:    key.NewBinding(key.WithKeys("pgup", "b"), key.WithHelp("pgup", "上页")),
-		PageDown:  key.NewBinding(key.WithKeys("pgdown", "f", " "), key.WithHelp("space", "下页")),
+		Up:        key.NewBinding(key.WithKeys("k", "up", "pgup"), key.WithHelp("k/pgup/↑", "上一页")),
+		Down:      key.NewBinding(key.WithKeys("j", "down", "pgdown", " "), key.WithHelp("j/space/pgdn/↓", "下一页")),
 		GotoTop:   key.NewBinding(key.WithKeys("g", "home"), key.WithHelp("g", "到首")),
 		GotoEnd:   key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G", "到尾")),
 		Open:      key.NewBinding(key.WithKeys("o", "enter"), key.WithHelp("o/enter", "打开")),

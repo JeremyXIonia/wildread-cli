@@ -11,37 +11,110 @@
 - 💾 **进度**：自动保存阅读进度，下次打开继续阅读
 - ⌨️ **Vim 风格快捷键**：全键盘操作
 
-## 安装
+## 环境要求
 
-### 从源码编译
+- [Go 1.25+](https://go.dev/dl/)
+- 无需 CGO、无需 C 编译器（MSVC / Xcode Command Line Tools 均不需要）
+
+## 编译
+
+### 日常开发
 
 ```bash
-git clone <repo>
-cd cli-read
+# 运行测试
+go test ./...
+
+# 编译当前平台
+go build .
+```
+
+如需指定输出文件名：
+
+```bash
+# macOS / Linux
 go build -o reader .
+
+# Windows
+go build -o reader.exe .
 ```
 
-### 跨平台构建
+### 交叉编译示例
 
 ```bash
-./build.sh
+# 在 macOS / Linux 上编译 Windows 版本
+GOOS=windows GOARCH=amd64 go build -o reader.exe .
+
+# 在 Windows CMD 中编译 macOS Apple Silicon 版本
+set GOOS=darwin
+set GOARCH=arm64
+go build -o reader-mac-arm64 .
 ```
 
-生成当前平台、Windows (amd64)、macOS (Intel + Apple Silicon) 四个二进制文件。
+### 一键构建发布产物
 
-> **注意：** 使用 `modernc.org/sqlite`（纯 Go SQLite 实现），无需安装 MSVC 或任何 C 编译器。
+```bash
+./build.sh        # macOS / Linux / Git Bash / WSL
+```
+
+生成当前平台、Windows (amd64)、macOS (Intel + Apple Silicon) 的二进制文件。
+
+> **注意：** 使用 `modernc.org/sqlite`（纯 Go SQLite），无需安装 MSVC 或任何 C 编译器。
+
+## 安装到全局路径
+
+编译完成后，将 `reader`（或 `reader.exe`）放到系统 PATH 中，即可在任意位置运行。
+
+### Windows
+
+**方法一：移动到已有 PATH 目录**
+
+```powershell
+copy reader.exe C:\Windows\System32\
+```
+
+**方法二：添加自定义目录到 PATH（推荐）**
+
+```powershell
+# 创建目录
+mkdir C:\tools
+
+# 移动文件
+move reader.exe C:\tools\
+
+# 添加到用户 PATH（永久生效，需重启终端）
+setx PATH "$env:PATH;C:\tools"
+```
+
+### macOS
+
+**方法一：`/usr/local/bin`（推荐）**
+
+```bash
+sudo cp reader /usr/local/bin/
+```
+
+**方法二：用户目录（不需要 sudo）**
+
+```bash
+mkdir -p ~/.local/bin
+cp reader ~/.local/bin/
+
+# 添加到 PATH（~/.zshrc 是 macOS 默认 shell 配置）
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
 
 ## 使用
 
 ```bash
 # 默认扫描 ./books 目录
-./reader
+reader
 
 # 指定书籍目录
-./reader --dir /path/to/books
+reader --dir /path/to/books
 
 # 指定数据库路径
-./reader --db /path/to/db.sqlite
+reader --db /path/to/db.sqlite
 ```
 
 ## 键盘快捷键
@@ -60,8 +133,8 @@ go build -o reader .
 
 | 键 | 功能 |
 |----|------|
-| `j` / `Space` | 下一页 |
-| `k` | 上一页 |
+| `j` / `Space` / `↓` / `PgDn` | 下一页 |
+| `k` / `↑` / `PgUp` | 上一页 |
 | `gg` | 跳到章节开头 |
 | `G` | 跳到章节末尾 |
 | `o` | 打开章节目录 |
