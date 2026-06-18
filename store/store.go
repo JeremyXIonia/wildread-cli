@@ -15,8 +15,12 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-    db, err := sql.Open("sqlite", path+"?_fk=1")
+    db, err := sql.Open("sqlite", path)
     if err != nil { return nil, fmt.Errorf("open db: %w", err) }
+    if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("enable FK: %w", err)
+    }
     if _, err := db.Exec(schemaSQL); err != nil {
         db.Close()
         return nil, fmt.Errorf("init schema: %w", err)
