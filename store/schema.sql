@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS books (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_path   TEXT NOT NULL UNIQUE,
+    title       TEXT NOT NULL,
+    author      TEXT,
+    format      TEXT NOT NULL,
+    added_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS reading_progress (
+    book_id     INTEGER PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+    chapter     INTEGER DEFAULT 0,
+    page        INTEGER DEFAULT 0,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id     INTEGER REFERENCES books(id) ON DELETE CASCADE,
+    chapter     INTEGER NOT NULL,
+    page        INTEGER NOT NULL,
+    label       TEXT,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
