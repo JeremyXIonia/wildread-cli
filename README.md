@@ -16,6 +16,37 @@
 - [Go 1.25+](https://go.dev/dl/)
 - 无需 CGO、无需 C 编译器（MSVC / Xcode Command Line Tools 均不需要）
 
+## 安装
+
+### 推荐：安装脚本
+
+macOS：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JeremyXIonia/wildread-cli/master/install.sh | sh
+```
+
+Windows PowerShell：
+
+```powershell
+iwr https://raw.githubusercontent.com/JeremyXIonia/wildread-cli/master/install.ps1 -UseB | iex
+```
+
+安装脚本默认安装到用户目录，不需要管理员权限：
+
+- macOS: `~/.local/bin/wildread-cli`
+- Windows: `%USERPROFILE%\bin\wildread-cli.exe`
+
+### Go 用户
+
+```bash
+go install github.com/JeremyXIonia/wildread-cli@latest
+```
+
+### 手动下载
+
+从 [GitHub Releases](https://github.com/JeremyXIonia/wildread-cli/releases) 下载对应平台压缩包，解压后将 `wildread-cli` 或 `wildread-cli.exe` 放入 PATH。
+
 ## 编译
 
 ### 日常开发
@@ -59,50 +90,6 @@ go build -o wildread-cli-mac-arm64 .
 生成当前平台、Windows (amd64)、macOS (Intel + Apple Silicon) 的二进制文件。
 
 > **注意：** 使用 `modernc.org/sqlite`（纯 Go SQLite），无需安装 MSVC 或任何 C 编译器。
-
-## 安装到全局路径
-
-编译完成后，将 `wildread-cli`（或 `wildread-cli.exe`）放到系统 PATH 中，即可在任意位置运行。
-
-### Windows
-
-**方法一：移动到已有 PATH 目录**
-
-```powershell
-copy wildread-cli.exe C:\Windows\System32\
-```
-
-**方法二：添加自定义目录到 PATH（推荐）**
-
-```powershell
-# 创建目录
-mkdir C:\tools
-
-# 移动文件
-move wildread-cli.exe C:\tools\
-
-# 添加到用户 PATH（永久生效，需重启终端）
-setx PATH "$env:PATH;C:\tools"
-```
-
-### macOS
-
-**方法一：`/usr/local/bin`（推荐）**
-
-```bash
-sudo cp wildread-cli /usr/local/bin/
-```
-
-**方法二：用户目录（不需要 sudo）**
-
-```bash
-mkdir -p ~/.local/bin
-cp wildread-cli ~/.local/bin/
-
-# 添加到 PATH（~/.zshrc 是 macOS 默认 shell 配置）
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-```
 
 ## 使用
 
