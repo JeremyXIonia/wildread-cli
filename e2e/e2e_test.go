@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xuanchong/cli-read/models"
-	"github.com/xuanchong/cli-read/parser"
-	"github.com/xuanchong/cli-read/store"
+	"github.com/JeremyXIonia/wildread-cli/models"
+	"github.com/JeremyXIonia/wildread-cli/parser"
+	"github.com/JeremyXIonia/wildread-cli/store"
 )
 
 func TestE2EFlow(t *testing.T) {

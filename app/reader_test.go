@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/xuanchong/cli-read/models"
-	"github.com/xuanchong/cli-read/parser"
-	"github.com/xuanchong/cli-read/store"
+	"github.com/JeremyXIonia/wildread-cli/models"
+	"github.com/JeremyXIonia/wildread-cli/parser"
+	"github.com/JeremyXIonia/wildread-cli/store"
 )
 
 func newTestReader(t *testing.T) (ReaderModel, *store.Store) {

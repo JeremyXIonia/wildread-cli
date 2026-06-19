@@ -1,5 +1,6 @@
 # Binaries
 *.exe
+wildread-cli*
 novel-reader*
 reader*
 

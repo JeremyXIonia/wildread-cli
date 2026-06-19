@@ -16,11 +16,11 @@ func TestResolvePathsDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	wantData := filepath.Join(home, ".cli-read")
+	wantData := filepath.Join(home, ".wildread-cli")
 	if p.DataDir != wantData {
 		t.Fatalf("data dir: %q, want %q", p.DataDir, wantData)
 	}
-	if p.DBPath != filepath.Join(wantData, "novel-reader.db") {
+	if p.DBPath != filepath.Join(wantData, "wildread-cli.db") {
 		t.Fatalf("db path: %q", p.DBPath)
 	}
 	if p.DefaultBookDir != filepath.Join(wantData, ".book") {

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/xuanchong/cli-read/models"
+	"github.com/JeremyXIonia/wildread-cli/models"
 )
 
 func (s *Store) ListLibraryDirs() ([]models.LibraryDir, error) {

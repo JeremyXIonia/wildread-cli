@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/xuanchong/cli-read/models"
+	"github.com/JeremyXIonia/wildread-cli/models"
 )
 
 func testDirs() []models.LibraryDir {

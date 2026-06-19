@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	DefaultDataDirName = ".cli-read"
-	DefaultDBFileName  = "novel-reader.db"
+	DefaultDataDirName = ".wildread-cli"
+	DefaultDBFileName  = "wildread-cli.db"
 	DefaultBookDirName = ".book"
 )
 

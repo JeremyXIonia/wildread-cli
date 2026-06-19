@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/xuanchong/cli-read/models"
+	"github.com/JeremyXIonia/wildread-cli/models"
 	"os"
 	"path/filepath"
 	"testing"

@@ -1,6 +1,6 @@
 package app
 
-import "github.com/xuanchong/cli-read/models"
+import "github.com/JeremyXIonia/wildread-cli/models"
 
 // OpenBookMsg is sent when the user selects a book to read.
 type OpenBookMsg struct {

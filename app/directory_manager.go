@@ -9,9 +9,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/xuanchong/cli-read/config"
-	"github.com/xuanchong/cli-read/models"
-	"github.com/xuanchong/cli-read/ui"
+	"github.com/JeremyXIonia/wildread-cli/config"
+	"github.com/JeremyXIonia/wildread-cli/models"
+	"github.com/JeremyXIonia/wildread-cli/ui"
 )
 
 type dirManagerMode int

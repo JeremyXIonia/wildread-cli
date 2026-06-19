@@ -1,4 +1,4 @@
-module github.com/xuanchong/cli-read
+module github.com/JeremyXIonia/wildread-cli
 
 go 1.25.0
 

@@ -1,4 +1,4 @@
-# Novel Reader — 终端小说阅读器
+# Wildread CLI — 终端小说阅读器
 
 一个跨平台（Windows / macOS）的终端小说阅读器，支持 EPUB、TXT、Markdown 格式。
 
@@ -32,22 +32,22 @@ go build .
 
 ```bash
 # macOS / Linux
-go build -o reader .
+go build -o wildread-cli .
 
 # Windows
-go build -o reader.exe .
+go build -o wildread-cli.exe .
 ```
 
 ### 交叉编译示例
 
 ```bash
 # 在 macOS / Linux 上编译 Windows 版本
-GOOS=windows GOARCH=amd64 go build -o reader.exe .
+GOOS=windows GOARCH=amd64 go build -o wildread-cli.exe .
 
 # 在 Windows CMD 中编译 macOS Apple Silicon 版本
 set GOOS=darwin
 set GOARCH=arm64
-go build -o reader-mac-arm64 .
+go build -o wildread-cli-mac-arm64 .
 ```
 
 ### 一键构建发布产物
@@ -62,14 +62,14 @@ go build -o reader-mac-arm64 .
 
 ## 安装到全局路径
 
-编译完成后，将 `reader`（或 `reader.exe`）放到系统 PATH 中，即可在任意位置运行。
+编译完成后，将 `wildread-cli`（或 `wildread-cli.exe`）放到系统 PATH 中，即可在任意位置运行。
 
 ### Windows
 
 **方法一：移动到已有 PATH 目录**
 
 ```powershell
-copy reader.exe C:\Windows\System32\
+copy wildread-cli.exe C:\Windows\System32\
 ```
 
 **方法二：添加自定义目录到 PATH（推荐）**
@@ -79,7 +79,7 @@ copy reader.exe C:\Windows\System32\
 mkdir C:\tools
 
 # 移动文件
-move reader.exe C:\tools\
+move wildread-cli.exe C:\tools\
 
 # 添加到用户 PATH（永久生效，需重启终端）
 setx PATH "$env:PATH;C:\tools"
@@ -90,14 +90,14 @@ setx PATH "$env:PATH;C:\tools"
 **方法一：`/usr/local/bin`（推荐）**
 
 ```bash
-sudo cp reader /usr/local/bin/
+sudo cp wildread-cli /usr/local/bin/
 ```
 
 **方法二：用户目录（不需要 sudo）**
 
 ```bash
 mkdir -p ~/.local/bin
-cp reader ~/.local/bin/
+cp wildread-cli ~/.local/bin/
 
 # 添加到 PATH（~/.zshrc 是 macOS 默认 shell 配置）
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
@@ -107,17 +107,17 @@ source ~/.zshrc
 ## 使用
 
 ```bash
-# 默认使用 ~/.cli-read/novel-reader.db 和 ~/.cli-read/.book
-reader
+# 默认使用 ~/.wildread-cli/wildread-cli.db 和 ~/.wildread-cli/.book
+wildread-cli
 
 # 指定应用数据目录
-reader --data-dir /path/to/app-data
+wildread-cli --data-dir /path/to/app-data
 
 # 临时扫描一个书籍目录（不保存到目录列表）
-reader --dir /path/to/books
+wildread-cli --dir /path/to/books
 
 # 高级：指定数据库文件
-reader --db /path/to/db.sqlite
+wildread-cli --db /path/to/db.sqlite
 ```
 
 ## 键盘快捷键
@@ -175,15 +175,15 @@ reader --db /path/to/db.sqlite
 
 ## 数据存储
 
-默认应用数据目录为 `~/.cli-read`：
+默认应用数据目录为 `~/.wildread-cli`：
 
 ```text
-~/.cli-read/
-├── novel-reader.db
+~/.wildread-cli/
+├── wildread-cli.db
 └── .book/
 ```
 
-书籍目录列表保存在 SQLite 的 `library_dirs` 表中。首次启动没有配置目录时，会自动使用 `~/.cli-read/.book`。
+书籍目录列表保存在 SQLite 的 `library_dirs` 表中。首次启动没有配置目录时，会自动使用 `~/.wildread-cli/.book`。
 
 - `books` — 书架
 - `reading_progress` — 每本书的阅读进度
@@ -193,7 +193,7 @@ reader --db /path/to/db.sqlite
 ## 项目结构
 
 ```
-cli-read/
+wildread-cli/
 ├── main.go           # 入口
 ├── app/              # TUI 组件（书架、阅读器）
 ├── models/           # 数据模型

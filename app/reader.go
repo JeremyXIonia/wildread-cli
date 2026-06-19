@@ -8,10 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/xuanchong/cli-read/models"
-	"github.com/xuanchong/cli-read/pager"
-	"github.com/xuanchong/cli-read/store"
-	"github.com/xuanchong/cli-read/ui"
+	"github.com/JeremyXIonia/wildread-cli/models"
+	"github.com/JeremyXIonia/wildread-cli/pager"
+	"github.com/JeremyXIonia/wildread-cli/store"
+	"github.com/JeremyXIonia/wildread-cli/ui"
 )
 
 // ReaderMode represents the current sub-mode of the reader.

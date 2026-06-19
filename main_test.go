@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xuanchong/cli-read/app"
-	"github.com/xuanchong/cli-read/models"
-	"github.com/xuanchong/cli-read/store"
+	"github.com/JeremyXIonia/wildread-cli/app"
+	"github.com/JeremyXIonia/wildread-cli/models"
+	"github.com/JeremyXIonia/wildread-cli/store"
 )
 
 func newRootTestStore(t *testing.T) *store.Store {

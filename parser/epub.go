@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/xuanchong/cli-read/models"
+	"github.com/JeremyXIonia/wildread-cli/models"
 )
 
 // ParseEPUB parses an EPUB file.
