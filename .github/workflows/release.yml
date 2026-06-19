@@ -48,10 +48,16 @@ jobs:
           (cd dist && sha256sum wildread-cli-darwin-amd64.tar.gz wildread-cli-darwin-arm64.tar.gz wildread-cli-windows-amd64.zip > checksums.txt)
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/wildread-cli-darwin-amd64.tar.gz
-            dist/wildread-cli-darwin-arm64.tar.gz
-            dist/wildread-cli-windows-amd64.zip
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Release ${GITHUB_REF_NAME}" \
+            dist/wildread-cli-darwin-amd64.tar.gz \
+            dist/wildread-cli-darwin-arm64.tar.gz \
+            dist/wildread-cli-windows-amd64.zip \
             dist/checksums.txt

@@ -20,7 +20,7 @@ New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 try {
     $ZipPath = Join-Path $TempDir $Asset
     Write-Host "Downloading $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $ZipPath
+    Invoke-WebRequest -Uri $Url -OutFile $ZipPath -UseBasicParsing
 
     Expand-Archive -Path $ZipPath -DestinationPath $TempDir -Force
     $ExePath = Join-Path $TempDir "wildread-cli.exe"
@@ -30,7 +30,7 @@ try {
     $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if (($UserPath -split ';') -notcontains $InstallDir) {
         Write-Host "Add $InstallDir to your user PATH to run wildread-cli from anywhere."
-        Write-Host "You can run: [Environment]::SetEnvironmentVariable('Path', `$env:Path + ';$InstallDir', 'User')"
+        Write-Host "You can run: `$userPath = [Environment]::GetEnvironmentVariable('Path', 'User'); [Environment]::SetEnvironmentVariable('Path', `$userPath + ';$InstallDir', 'User')"
     }
 } finally {
     Remove-Item -Recurse -Force $TempDir -ErrorAction SilentlyContinue
