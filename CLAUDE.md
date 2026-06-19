@@ -43,5 +43,8 @@ go test ./... -v
 - EPUB parsing: self-implemented using archive/zip + XML + HTML parsing
 - Bookshelf: scan directory on startup only (no real-time monitoring)
 - Data: SQLite single file (books, reading_progress, bookmarks)
+- App data defaults to `~/.cli-read` (`novel-reader.db` + `.book`)
+- Managed book directories are stored in SQLite `library_dirs`
+- Directory deletion removes related book rows and cascades progress/bookmarks; original files are not deleted
 - Theme: follows terminal colors (no custom color scheme)
 - Foreign keys: enabled via `PRAGMA foreign_keys = ON` (modernc.org/sqlite doesn't support `?_fk=1`)
