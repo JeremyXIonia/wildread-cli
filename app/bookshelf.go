@@ -134,8 +134,12 @@ func (m BookshelfModel) View() string {
 	if m.searching {
 		b.WriteString("/ ")
 		b.WriteString(m.input.View())
-	} else if m.status != "" {
-		b.WriteString(ui.StatusStyle.Render(m.status))
+	} else {
+		if m.status != "" {
+			b.WriteString(ui.StatusStyle.Render(m.status))
+			b.WriteString("\n")
+		}
+		b.WriteString(ui.HintStyle.Render("d 管理目录"))
 	}
 	return b.String()
 }

@@ -37,6 +37,8 @@ iwr https://raw.githubusercontent.com/JeremyXIonia/wildread-cli/master/install.p
 - macOS: `~/.local/bin/wildread-cli`
 - Windows: `%USERPROFILE%\bin\wildread-cli.exe`
 
+安装完成后，如果安装目录还不在 PATH 中，脚本会输出可复制的 PATH 配置命令示例。
+
 ### Go 用户
 
 ```bash

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -46,5 +47,26 @@ func TestBookshelfOpenDirectoryManagerSendsMsg(t *testing.T) {
 	}
 	if _, ok := cmd().(OpenDirectoryManagerMsg); !ok {
 		t.Fatalf("expected OpenDirectoryManagerMsg")
+	}
+}
+
+func TestBookshelfOpenDirectoryManagerWithLowercaseDSendsMsg(t *testing.T) {
+	books := []models.Book{{ID: 1, Title: "三体", Format: "epub"}}
+	m := NewBookshelfModel(books)
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if cmd == nil {
+		t.Fatal("expected command")
+	}
+	if _, ok := cmd().(OpenDirectoryManagerMsg); !ok {
+		t.Fatalf("expected OpenDirectoryManagerMsg")
+	}
+}
+
+func TestBookshelfViewShowsDirectoryManagerHint(t *testing.T) {
+	books := []models.Book{{ID: 1, Title: "三体", Format: "epub"}}
+	m := NewBookshelfModel(books)
+	view := m.View()
+	if !strings.Contains(view, "d") || !strings.Contains(view, "目录") {
+		t.Fatalf("view missing directory manager hint: %q", view)
 	}
 }

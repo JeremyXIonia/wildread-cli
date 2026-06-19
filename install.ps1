@@ -28,9 +28,18 @@ try {
 
     Write-Host "Installed wildread-cli.exe to $InstallDir"
     $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    if (($UserPath -split ';') -notcontains $InstallDir) {
-        Write-Host "Add $InstallDir to your user PATH to run wildread-cli from anywhere."
-        Write-Host "You can run: `$userPath = [Environment]::GetEnvironmentVariable('Path', 'User'); [Environment]::SetEnvironmentVariable('Path', `$userPath + ';$InstallDir', 'User')"
+    if (($UserPath -split ';') -contains $InstallDir) {
+        Write-Host "You can now run: wildread-cli"
+    } else {
+        Write-Host ""
+        Write-Host "To run wildread-cli from anywhere, add $InstallDir to your User PATH."
+        Write-Host "For modern PowerShell, run:"
+        Write-Host ""
+        Write-Host "  `$installDir = '$InstallDir'"
+        Write-Host '  $userPath = [Environment]::GetEnvironmentVariable(''Path'', ''User'')'
+        Write-Host '  [Environment]::SetEnvironmentVariable(''Path'', "$userPath;$installDir", ''User'')'
+        Write-Host ""
+        Write-Host "Then reopen PowerShell."
     }
 } finally {
     Remove-Item -Recurse -Force $TempDir -ErrorAction SilentlyContinue

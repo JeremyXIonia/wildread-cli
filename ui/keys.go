@@ -30,7 +30,7 @@ func DefaultKey() KeyMap {
 		GotoEnd:    key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G", "到尾")),
 		Open:       key.NewBinding(key.WithKeys("o", "enter"), key.WithHelp("o/enter", "打开")),
 		Search:     key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "搜索")),
-		ManageDirs: key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "目录")),
+		ManageDirs: key.NewBinding(key.WithKeys("d", "D"), key.WithHelp("d", "目录")),
 		Back:       key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc/q", "返回")),
 		Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "退出")),
 		Next:       key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "下一章")),

@@ -48,6 +48,18 @@ install -m 0755 "$tmp/$BIN" "$INSTALL_DIR/$BIN"
 
 echo "Installed $BIN to $INSTALL_DIR/$BIN"
 case ":$PATH:" in
-  *":$INSTALL_DIR:"*) ;;
-  *) echo "Add $INSTALL_DIR to PATH to run '$BIN' from anywhere." ;;
+  *":$INSTALL_DIR:"*)
+    echo "You can now run: $BIN"
+    ;;
+  *)
+    echo ""
+    echo "To run '$BIN' from anywhere, add $INSTALL_DIR to PATH."
+    echo "For modern macOS zsh, run:"
+    echo ""
+    echo "  mkdir -p \"$INSTALL_DIR\""
+    echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
+    echo "  source ~/.zshrc"
+    echo ""
+    echo "Or reopen your terminal after updating ~/.zshrc."
+    ;;
 esac
