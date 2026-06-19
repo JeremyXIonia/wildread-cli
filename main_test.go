@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/JeremyXIonia/wildread-cli/app"
 	"github.com/JeremyXIonia/wildread-cli/models"
 	"github.com/JeremyXIonia/wildread-cli/store"
@@ -235,6 +237,31 @@ func TestSyncBooksPrunesMissingFromFullScan(t *testing.T) {
 	}
 	if len(books) != 0 {
 		t.Fatalf("books after prune: %+v", books)
+	}
+}
+
+func TestRootOpenBookUsesCurrentWindowSize(t *testing.T) {
+	st := newRootTestStore(t)
+	dir := t.TempDir()
+	bookPath := filepath.Join(dir, "sized.txt")
+	writeTestBook(t, bookPath, "Sized")
+	bookID, err := st.UpsertBook(models.Book{Title: "Sized", FilePath: bookPath, Format: "txt"})
+	if err != nil {
+		t.Fatalf("upsert book: %v", err)
+	}
+	m := rootModel{store: st, mode: modeBookshelf, bookshelf: app.NewBookshelfModel(nil)}
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = updated.(rootModel)
+
+	updated, _ = m.Update(app.OpenBookMsg{Book: models.Book{ID: bookID, FilePath: bookPath}})
+	root := updated.(rootModel)
+
+	if root.mode != modeReader || root.reader == nil {
+		t.Fatalf("reader was not opened: mode=%v reader=%v", root.mode, root.reader)
+	}
+	view := root.View()
+	if lines := strings.Count(view, "\n") + 1; lines != 30 {
+		t.Fatalf("reader view lines = %d, want 30; view=%q", lines, view)
 	}
 }
 

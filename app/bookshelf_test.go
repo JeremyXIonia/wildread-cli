@@ -62,11 +62,14 @@ func TestBookshelfOpenDirectoryManagerWithLowercaseDSendsMsg(t *testing.T) {
 	}
 }
 
-func TestBookshelfViewShowsDirectoryManagerHint(t *testing.T) {
+func TestBookshelfViewShowsDirectoryManagerHintInListHelp(t *testing.T) {
 	books := []models.Book{{ID: 1, Title: "三体", Format: "epub"}}
 	m := NewBookshelfModel(books)
 	view := m.View()
-	if !strings.Contains(view, "d") || !strings.Contains(view, "目录") {
-		t.Fatalf("view missing directory manager hint: %q", view)
+	if !strings.Contains(view, "d 目录") {
+		t.Fatalf("view missing directory manager hint in list help: %q", view)
+	}
+	if strings.Contains(view, "d 管理目录") {
+		t.Fatalf("view still renders separate directory manager hint: %q", view)
 	}
 }

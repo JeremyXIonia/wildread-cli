@@ -44,6 +44,14 @@ func NewBookshelfModel(books []models.Book) BookshelfModel {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 
+	keys := ui.DefaultKey()
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.ManageDirs}
+	}
+	l.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.ManageDirs}
+	}
+
 	ti := textinput.New()
 	ti.Placeholder = "搜索书名..."
 	ti.CharLimit = 50
@@ -51,7 +59,7 @@ func NewBookshelfModel(books []models.Book) BookshelfModel {
 	return BookshelfModel{
 		list:     l,
 		input:    ti,
-		keys:     ui.DefaultKey(),
+		keys:     keys,
 		allItems: items,
 	}
 }
@@ -134,12 +142,8 @@ func (m BookshelfModel) View() string {
 	if m.searching {
 		b.WriteString("/ ")
 		b.WriteString(m.input.View())
-	} else {
-		if m.status != "" {
-			b.WriteString(ui.StatusStyle.Render(m.status))
-			b.WriteString("\n")
-		}
-		b.WriteString(ui.HintStyle.Render("d 管理目录"))
+	} else if m.status != "" {
+		b.WriteString(ui.StatusStyle.Render(m.status))
 	}
 	return b.String()
 }

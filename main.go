@@ -24,6 +24,8 @@ type rootModel struct {
 	bookshelf        app.BookshelfModel
 	directoryManager app.DirectoryManagerModel
 	reader           *app.ReaderModel
+	width            int
+	height           int
 }
 
 type appMode int
@@ -412,11 +414,17 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		parsed.FilePath = msg.Book.FilePath
 		progress, _ := m.store.GetProgress(msg.Book.ID)
 		reader := app.NewReaderModel(parsed, progress, m.store)
+		if m.width > 0 && m.height > 0 {
+			resized, _ := reader.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+			reader = resized.(app.ReaderModel)
+		}
 		m.reader = &reader
 		m.mode = modeReader
 		return m, nil
 
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 		if m.mode == modeBookshelf {
 			bs, cmd := m.bookshelf.Update(msg)
 			m.bookshelf = bs.(app.BookshelfModel)

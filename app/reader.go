@@ -41,7 +41,7 @@ type ReaderModel struct {
 
 const (
 	readerHeaderLines = 1
-	readerFooterLines = 2
+	readerFooterLines = 1
 )
 
 // NewReaderModel creates a new reader model.
