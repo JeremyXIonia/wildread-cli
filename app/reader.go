@@ -25,18 +25,20 @@ const (
 
 // ReaderModel is the reading view.
 type ReaderModel struct {
-	book      *models.Book
-	pager     *pager.Pager
-	viewport  viewport.Model
-	keys      ui.KeyMap
-	chapter   int
-	page      int
-	width     int
-	height    int
-	mode      ReaderMode
-	status    string
-	store     *store.Store
-	bookmarks []models.Bookmark
+	book             *models.Book
+	pager            *pager.Pager
+	viewport         viewport.Model
+	keys             ui.KeyMap
+	chapter          int
+	page             int
+	width            int
+	height           int
+	mode             ReaderMode
+	status           string
+	store            *store.Store
+	bookmarks        []models.Bookmark
+	tocSelected      int
+	bookmarkSelected int
 }
 
 const (
@@ -163,11 +165,13 @@ func (m ReaderModel) updateReading(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Prev):
 		m.prevChapter()
 	case key.Matches(msg, m.keys.Open):
+		m.tocSelected = m.chapter
 		m.mode = ModeTOC
 	case key.Matches(msg, m.keys.Bookmarks):
 		if m.store != nil {
 			m.bookmarks, _ = m.store.ListBookmarks(m.book.ID)
 		}
+		m.bookmarkSelected = 0
 		m.mode = ModeBookmarks
 	case key.Matches(msg, m.keys.Mark):
 		if m.store == nil {
@@ -190,15 +194,53 @@ func (m ReaderModel) updateReading(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m ReaderModel) updateTOC(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if key.Matches(msg, m.keys.Back) {
+	switch {
+	case key.Matches(msg, m.keys.Back):
 		m.mode = ModeReading
+	case key.Matches(msg, m.keys.Down):
+		if m.tocSelected+1 < len(m.book.Chapters) {
+			m.tocSelected++
+		}
+	case key.Matches(msg, m.keys.Up):
+		if m.tocSelected > 0 {
+			m.tocSelected--
+		}
+	case key.Matches(msg, m.keys.Confirm):
+		m.chapter = m.tocSelected
+		m.page = 0
+		m.pager = pager.New(m.book.Chapters[m.chapter].Content, m.viewport.Width, m.viewport.Height)
+		m.loadPageContent()
+		m.mode = ModeReading
+		return m, m.saveProgress()
 	}
 	return m, nil
 }
 
 func (m ReaderModel) updateBookmarks(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if key.Matches(msg, m.keys.Back) {
+	switch {
+	case key.Matches(msg, m.keys.Back):
 		m.mode = ModeReading
+	case key.Matches(msg, m.keys.Down):
+		if m.bookmarkSelected+1 < len(m.bookmarks) {
+			m.bookmarkSelected++
+		}
+	case key.Matches(msg, m.keys.Up):
+		if m.bookmarkSelected > 0 {
+			m.bookmarkSelected--
+		}
+	case key.Matches(msg, m.keys.Confirm):
+		if len(m.bookmarks) == 0 {
+			return m, nil
+		}
+		bm := m.bookmarks[m.bookmarkSelected]
+		if bm.Chapter >= 0 && bm.Chapter < len(m.book.Chapters) {
+			m.chapter = bm.Chapter
+			m.page = bm.Page
+			m.pager = pager.New(m.book.Chapters[m.chapter].Content, m.viewport.Width, m.viewport.Height)
+			m.loadPageContent()
+		}
+		m.mode = ModeReading
+		return m, m.saveProgress()
 	}
 	return m, nil
 }
@@ -295,12 +337,45 @@ func (m ReaderModel) View() string {
 	return b.String()
 }
 
+func (m ReaderModel) listBodyHeight() int {
+	bodyHeight := m.height - 4
+	if bodyHeight < 1 {
+		bodyHeight = 1
+	}
+	return bodyHeight
+}
+
+func visibleListRange(total, selected, height int) (int, int) {
+	if total <= 0 {
+		return 0, 0
+	}
+	if selected < 0 {
+		selected = 0
+	}
+	if selected >= total {
+		selected = total - 1
+	}
+	if height >= total {
+		return 0, total
+	}
+	start := selected - height/2
+	if start < 0 {
+		start = 0
+	}
+	if start+height > total {
+		start = total - height
+	}
+	return start, start + height
+}
+
 func (m ReaderModel) viewTOC() string {
 	var b strings.Builder
 	b.WriteString("章节目录\n\n")
-	for i, c := range m.book.Chapters {
+	start, end := visibleListRange(len(m.book.Chapters), m.tocSelected, m.listBodyHeight())
+	for i := start; i < end; i++ {
+		c := m.book.Chapters[i]
 		marker := "  "
-		if i == m.chapter {
+		if i == m.tocSelected {
 			marker = "> "
 		}
 		title := c.Title
@@ -310,7 +385,7 @@ func (m ReaderModel) viewTOC() string {
 		b.WriteString(fmt.Sprintf("%s%s\n", marker, title))
 	}
 	b.WriteString("\n")
-	b.WriteString(ui.HintStyle.Render("esc/q 返回阅读"))
+	b.WriteString(ui.HintStyle.Render("j/k 移动  Enter 跳转  esc/q 返回阅读"))
 	return b.String()
 }
 
@@ -320,11 +395,17 @@ func (m ReaderModel) viewBookmarks() string {
 	if len(m.bookmarks) == 0 {
 		b.WriteString(ui.HintStyle.Render("（暂无书签）"))
 	} else {
-		for _, bm := range m.bookmarks {
-			b.WriteString(fmt.Sprintf("#%d  第 %d 章 第 %d 页  %s\n", bm.ID, bm.Chapter+1, bm.Page+1, bm.Label))
+		start, end := visibleListRange(len(m.bookmarks), m.bookmarkSelected, m.listBodyHeight())
+		for i := start; i < end; i++ {
+			bm := m.bookmarks[i]
+			marker := "  "
+			if i == m.bookmarkSelected {
+				marker = "> "
+			}
+			b.WriteString(fmt.Sprintf("%s#%d  第 %d 章 第 %d 页  %s\n", marker, bm.ID, bm.Chapter+1, bm.Page+1, bm.Label))
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(ui.HintStyle.Render("esc/q 返回阅读"))
+	b.WriteString(ui.HintStyle.Render("j/k 移动  Enter 跳转  esc/q 返回阅读"))
 	return b.String()
 }
